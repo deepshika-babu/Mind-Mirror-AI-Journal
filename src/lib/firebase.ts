@@ -136,4 +136,28 @@ export async function deleteUserEntry(userId: string, entryId: string): Promise<
   if (!userId || !entryId) throw new Error('User ID and Entry ID are required.');
   const entryRef = doc(db, 'users', userId, 'entries', entryId);
   await deleteDoc(entryRef);
+
+  // Mandatory Phase 2A requirement: delete associated insight to prevent orphaned data
+  try {
+    const insightRef = doc(db, 'users', userId, 'insights', `insight_${entryId}`);
+    await deleteDoc(insightRef);
+  } catch (err) {
+    console.warn(`Could not delete associated insight for ${entryId}:`, err);
+  }
+}
+
+/**
+ * Fetch existing stored insight for a given entry
+ */
+export async function fetchUserInsight(userId: string, entryId: string) {
+  if (!userId || !entryId) return null;
+  try {
+    const insightRef = doc(db, 'users', userId, 'insights', `insight_${entryId}`);
+    const snap = await getDoc(insightRef);
+    if (!snap.exists()) return null;
+    return snap.data();
+  } catch (err) {
+    console.warn(`Could not load insight for ${entryId}:`, err);
+    return null;
+  }
 }

@@ -50,3 +50,36 @@ export interface ReflectionResponse {
   suggestedTitle?: string;
   suggestedTags?: string[];
 }
+
+export interface GroundedEvidence {
+  observation: string;
+  evidenceQuote: string;
+  sourceTurnId: string;
+}
+
+export interface ReflectionInsight {
+  id: string; // insight_{entryId}
+  entryId: string;
+  themes: GroundedEvidence[];
+  expressedEmotions: GroundedEvidence[];
+  goals: GroundedEvidence[];
+  challenges: GroundedEvidence[];
+  achievements: GroundedEvidence[];
+  possibleActions: string[];
+  peopleMentioned: string[];
+  placesMentioned: string[];
+  openQuestions: string[];
+  entryUpdatedAtAtAnalysis: number;
+  generatedAt: number;
+  modelUsed: string;
+  version: number;
+}
+
+export interface InsightRequest {
+  entryId: string;
+  forceRegenerate?: boolean;
+}
+
+export interface InsightResponse {
+  insight: ReflectionInsight;
+}

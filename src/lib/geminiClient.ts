@@ -1,4 +1,30 @@
-import type { ReflectionMode, ReflectionResponse } from '../types.ts';
+import { auth } from './firebase.ts';
+import type {
+  ReflectionMode,
+  ReflectionResponse,
+  ReflectionInsight,
+} from '../types.ts';
+
+/**
+ * Acquire fresh Firebase ID token from current authenticated user
+ */
+async function getAuthHeaders(): Promise<{ 'Content-Type': string; Authorization?: string }> {
+  const headers: { 'Content-Type': string; Authorization?: string } = {
+    'Content-Type': 'application/json',
+  };
+
+  const currentUser = auth.currentUser;
+  if (currentUser) {
+    try {
+      const idToken = await currentUser.getIdToken();
+      headers.Authorization = `Bearer ${idToken}`;
+    } catch (err) {
+      console.warn('Could not retrieve Firebase ID token:', err);
+    }
+  }
+
+  return headers;
+}
 
 export async function requestReflection(params: {
   prompt: string;
@@ -9,11 +35,10 @@ export async function requestReflection(params: {
   mode?: ReflectionMode;
   titleContext?: string;
 }): Promise<ReflectionResponse> {
+  const headers = await getAuthHeaders();
   const response = await fetch('/api/reflect', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: JSON.stringify(params),
   });
 
@@ -34,11 +59,10 @@ export async function generateEntryMetadata(text: string): Promise<{
   summary: string;
   tags: string[];
 }> {
+  const headers = await getAuthHeaders();
   const response = await fetch('/api/summarize-entry', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: JSON.stringify({ text }),
   });
 
@@ -51,4 +75,35 @@ export async function generateEntryMetadata(text: string): Promise<{
   }
 
   return response.json();
+}
+
+/**
+ * Phase 2A: Single-entry, user-triggered, evidence-grounded reflection insights
+ */
+export async function requestEntryInsights(
+  entryId: string,
+  forceRegenerate: boolean = false
+): Promise<ReflectionInsight> {
+  const headers = await getAuthHeaders();
+  if (!headers.Authorization) {
+    throw new Error('You must be signed in to explore reflection insights.');
+  }
+
+  const response = await fetch('/api/insights', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ entryId, forceRegenerate }),
+  });
+
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    throw new Error(errData.error || `Insight extraction failed (${response.status})`);
+  }
+
+  const data = await response.json();
+  if (!data || !data.insight) {
+    throw new Error('Received unexpected empty insight response from server.');
+  }
+
+  return data.insight as ReflectionInsight;
 }

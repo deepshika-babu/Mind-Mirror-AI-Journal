@@ -3,13 +3,11 @@ import {
   ShieldCheck,
   Lock,
   Database,
-  Key,
   Server,
   UserCheck,
   FileCheck2,
-  Trash2,
-  Download,
-  AlertCircle,
+  Sparkles,
+  EyeOff,
 } from 'lucide-react';
 import type { UserProfile } from '../types.ts';
 import { tokens } from '../lib/designTokens.ts';
@@ -26,11 +24,11 @@ export const PrivacyPage: React.FC<PrivacyPageProps> = ({ user }) => {
         <section className="bg-white rounded-3xl border border-stone-200 p-6 sm:p-8 shadow-xs space-y-3">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-xs font-medium text-emerald-800">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Cryptographically Verified Security Architecture</span>
+            <span>Verified Authentication &amp; Access Control Architecture</span>
           </div>
-          <h1 className={tokens.typography.h1}>Privacy & Data Protection</h1>
+          <h1 className={tokens.typography.h1}>Privacy &amp; Data Protection</h1>
           <p className="text-stone-600 text-sm sm:text-base leading-relaxed">
-            MindMirror was engineered from the ground up as an impenetrable personal sanctuary. We recognize that journal entries contain your most intimate thoughts, dilemmas, and memories. Here is how your data is strictly guarded.
+            MindMirror was designed as a private, contemplative sanctuary. Journal reflections contain intimate thoughts, challenges, and aspirations. Here is how your data, insights, and AI interactions are securely handled.
           </p>
         </section>
 
@@ -46,29 +44,29 @@ export const PrivacyPage: React.FC<PrivacyPageProps> = ({ user }) => {
               <p className="text-xs font-mono text-stone-900 truncate font-semibold">
                 {user.uid}
               </p>
-              <p className="text-[10px] text-emerald-800 font-medium">Bound to private Firestore subtree</p>
+              <p className="text-[10px] text-emerald-800 font-medium">Verified by Firebase Admin SDK</p>
             </div>
 
             <div className="p-3.5 rounded-xl bg-stone-50 border border-stone-200 space-y-1">
               <span className="text-[11px] font-medium text-stone-600 flex items-center gap-1.5">
                 <Database className="w-3.5 h-3.5 text-amber-700" />
-                Firestore Storage Path
+                Private Firestore Scope
               </span>
               <p className="text-xs font-mono text-stone-900 truncate font-semibold">
-                /users/{user.uid.slice(0, 8)}.../entries
+                /users/{user.uid.slice(0, 8)}.../*
               </p>
-              <p className="text-[10px] text-amber-800 font-medium">Zero cross-user read permissions</p>
+              <p className="text-[10px] text-amber-800 font-medium">Owner-bound read &amp; write security</p>
             </div>
 
             <div className="p-3.5 rounded-xl bg-stone-50 border border-stone-200 space-y-1">
               <span className="text-[11px] font-medium text-stone-600 flex items-center gap-1.5">
                 <Server className="w-3.5 h-3.5 text-amber-700" />
-                Gemini API Proxy
+                Server Token Verification
               </span>
               <p className="text-xs font-mono text-stone-900 truncate font-semibold">
-                Backend Server-Side (Cloud Run)
+                Bearer Token Authentication
               </p>
-              <p className="text-[10px] text-emerald-800 font-medium">Zero browser API key exposure</p>
+              <p className="text-[10px] text-emerald-800 font-medium">Zero client-claimed identity trust</p>
             </div>
           </div>
         </section>
@@ -80,10 +78,10 @@ export const PrivacyPage: React.FC<PrivacyPageProps> = ({ user }) => {
               <Lock className="w-5 h-5" />
             </div>
             <h3 className="font-serif text-lg font-semibold text-stone-900">
-              1. Federated Identity & Zero Password Storage
+              1. Federated Identity &amp; Server Token Verification
             </h3>
             <p className="text-xs sm:text-sm text-stone-600 leading-relaxed">
-              We never collect, process, or store passwords. Authentication is handled exclusively through federated Google OAuth via Firebase Authentication. Your credentials are authenticated by Google directly, and your session is maintained with cryptographically signed JSON Web Tokens (JWT).
+              Authentication is handled through Firebase Authentication. Every backend endpoint (<code className="bg-stone-100 px-1 py-0.5 rounded text-[11px] text-stone-800">/api/reflect</code>, <code className="bg-stone-100 px-1 py-0.5 rounded text-[11px] text-stone-800">/api/summarize-entry</code>, and <code className="bg-stone-100 px-1 py-0.5 rounded text-[11px] text-stone-800">/api/insights</code>) validates the client&apos;s cryptographically signed Firebase ID token with the Firebase Admin SDK. The user identity is derived exclusively from the verified token.
             </p>
           </div>
 
@@ -92,34 +90,46 @@ export const PrivacyPage: React.FC<PrivacyPageProps> = ({ user }) => {
               <Database className="w-5 h-5" />
             </div>
             <h3 className="font-serif text-lg font-semibold text-stone-900">
-              2. Firestore Owner-Bound Security Rules
+              2. Owner-Bound Firestore Storage &amp; Isolation
             </h3>
             <p className="text-xs sm:text-sm text-stone-600 leading-relaxed">
-              All entries are stored in subcollections matching <code className="bg-stone-100 px-1 py-0.5 rounded text-[11px] text-stone-800">/users/{'{userId}'}/entries</code>. Our Firestore security rules enforce that only the verified token owner (<code className="bg-stone-100 px-1 py-0.5 rounded text-[11px] text-stone-800">request.auth.uid == userId</code>) can read or modify documents.
+              All journal reflections and insights reside strictly within subcollections under <code className="bg-stone-100 px-1 py-0.5 rounded text-[11px] text-stone-800">/users/{'{userId}'}/</code>. Both declarative Firestore security rules and backend database operations enforce strict tenant isolation, guaranteeing users cannot read or write another user&apos;s data.
             </p>
           </div>
 
           <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-xs space-y-3">
             <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center">
-              <Server className="w-5 h-5" />
+              <Sparkles className="w-5 h-5" />
             </div>
             <h3 className="font-serif text-lg font-semibold text-stone-900">
-              3. Secure Server-Side AI Inference
+              3. On-Demand AI Analysis &amp; Grounded Evidence
             </h3>
             <p className="text-xs sm:text-sm text-stone-600 leading-relaxed">
-              Gemini API calls are never initiated client-side. Requests are routed through our hardened backend Express service. API credentials reside strictly in Google Cloud Secret Manager or server environment variables, completely concealed from browser inspection.
+              AI analysis is never executed passively in the background. Reflection turns and structured insights are generated only when you explicitly write a prompt or click &ldquo;Explore Insights&rdquo;. Every extracted observation is grounded in verbatim quotes from your written entries.
             </p>
           </div>
 
           <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-xs space-y-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center">
+              <EyeOff className="w-5 h-5" />
+            </div>
+            <h3 className="font-serif text-lg font-semibold text-stone-900">
+              4. Data Minimization &amp; Safe Logging
+            </h3>
+            <p className="text-xs sm:text-sm text-stone-600 leading-relaxed">
+              Our server logs omit all journal content, reflection prompt texts, authentication tokens, and full AI outputs. Server logs record only sanitized operational metadata (such as timestamps, endpoint paths, and model status codes) to ensure your privacy remains uncompromised.
+            </p>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-xs space-y-3 md:col-span-2">
             <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center">
               <FileCheck2 className="w-5 h-5" />
             </div>
             <h3 className="font-serif text-lg font-semibold text-stone-900">
-              4. Sovereign Ownership & Portability
+              5. Sovereign Ownership &amp; Cascading Deletion
             </h3>
             <p className="text-xs sm:text-sm text-stone-600 leading-relaxed">
-              Your journal is entirely yours. You may export individual reflections as clean Markdown files or download your entire journal archive at any time from Settings. When you delete a reflection, it is permanently erased from your cloud database.
+              Your journal is entirely yours. You can export reflections at any time as clean Markdown or JSON archives. When you delete a reflection, MindMirror automatically executes a cascading deletion, permanently removing both the journal entry and any associated reflection insight documents from Firestore.
             </p>
           </div>
         </section>
@@ -146,7 +156,7 @@ service cloud.firestore {
 }`}
           </pre>
           <p className="text-xs text-stone-400">
-            Guarantees that database rules reject any attempt by User A to read, list, modify, or delete any record belonging to User B.
+            Rules enforce that the database rejects any attempt by one user to read, list, modify, or delete records belonging to another user.
           </p>
         </section>
       </div>
