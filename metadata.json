@@ -2,5 +2,7 @@
   "name": "AI Journal & Reflections",
   "description": "User-authenticated multi-turn reflection and journaling application with private Firestore persistence and Gemini AI insights.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

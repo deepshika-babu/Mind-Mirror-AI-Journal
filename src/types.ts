@@ -1,5 +1,12 @@
 export type ReflectionMode = 'reflect' | 'summarize' | 'brainstorm' | 'action_plan';
 
+export type AppView = 'home' | 'journal' | 'privacy' | 'settings';
+
+export interface UserPreferences {
+  defaultMode: ReflectionMode;
+  showTimestamps: boolean;
+}
+
 export interface JournalTurn {
   id: string;
   role: 'user' | 'model';

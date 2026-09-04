@@ -14,6 +14,7 @@ import {
   Clock,
   RotateCcw,
   Compass,
+  ArrowLeft,
 } from 'lucide-react';
 import type { JournalEntry, JournalTurn, ReflectionMode } from '../types.ts';
 
@@ -25,6 +26,9 @@ interface EntryWorkspaceProps {
   activeError: string | null;
   onClearError: () => void;
   onRetry: () => void;
+  onBackToList?: () => void;
+  initialMode?: ReflectionMode;
+  showTimestamps?: boolean;
 }
 
 const REFLECTION_MODES: {
@@ -74,14 +78,23 @@ export const EntryWorkspace: React.FC<EntryWorkspaceProps> = ({
   activeError,
   onClearError,
   onRetry,
+  onBackToList,
+  initialMode = 'reflect',
+  showTimestamps = true,
 }) => {
   const [inputPrompt, setInputPrompt] = useState('');
-  const [selectedMode, setSelectedMode] = useState<ReflectionMode>('reflect');
+  const [selectedMode, setSelectedMode] = useState<ReflectionMode>(initialMode);
   const [copiedTurnId, setCopiedTurnId] = useState<string | null>(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
   const [newTagInput, setNewTagInput] = useState('');
   const [showTagInput, setShowTagInput] = useState(false);
+
+  useEffect(() => {
+    if (initialMode) {
+      setSelectedMode(initialMode);
+    }
+  }, [initialMode]);
 
   const turnsEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -106,6 +119,16 @@ export const EntryWorkspace: React.FC<EntryWorkspaceProps> = ({
         <p className="text-sm text-stone-600 max-w-sm">
           Select a previous journal entry from the history panel or create a new reflection to begin conversing with Gemini.
         </p>
+        {onBackToList && (
+          <button
+            id="empty-back-to-list-btn"
+            onClick={onBackToList}
+            className="md:hidden mt-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-200 text-xs text-stone-700 bg-white shadow-2xs hover:bg-stone-50"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Back to Reflections List</span>
+          </button>
+        )}
       </div>
     );
   }
@@ -185,6 +208,16 @@ export const EntryWorkspace: React.FC<EntryWorkspaceProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           {/* Title Area */}
           <div className="flex items-center gap-2 flex-1 min-w-0">
+            {onBackToList && (
+              <button
+                id="mobile-back-to-list-btn"
+                onClick={onBackToList}
+                className="md:hidden p-1.5 -ml-1 text-stone-600 hover:text-stone-900 rounded-lg hover:bg-stone-100 transition-colors shrink-0"
+                title="Back to reflections list"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+            )}
             {isEditingTitle ? (
               <div className="flex items-center gap-2 w-full max-w-md">
                 <input
@@ -385,8 +418,12 @@ export const EntryWorkspace: React.FC<EntryWorkspaceProps> = ({
                   {isUser ? (
                     <>
                       <span className="font-medium text-stone-700">You (Journal Reflection)</span>
-                      <span>•</span>
-                      <span>{new Date(turn.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      {showTimestamps && (
+                        <>
+                          <span>•</span>
+                          <span>{new Date(turn.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        </>
+                      )}
                     </>
                   ) : (
                     <>
@@ -394,8 +431,12 @@ export const EntryWorkspace: React.FC<EntryWorkspaceProps> = ({
                       <span className="font-medium text-amber-800">
                         Gemini ({turn.modelUsed || 'gemini-3.6-flash'})
                       </span>
-                      <span>•</span>
-                      <span>{new Date(turn.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      {showTimestamps && (
+                        <>
+                          <span>•</span>
+                          <span>{new Date(turn.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        </>
+                      )}
                       {turn.mode && (
                         <span className="bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.2 rounded text-[10px]">
                           {turn.mode}

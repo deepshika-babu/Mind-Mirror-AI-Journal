@@ -14,13 +14,46 @@ import { LandingPage } from './components/LandingPage.tsx';
 import { Navbar } from './components/Navbar.tsx';
 import { SidebarHistory } from './components/SidebarHistory.tsx';
 import { EntryWorkspace } from './components/EntryWorkspace.tsx';
-import type { JournalEntry, JournalTurn, ReflectionMode, UserProfile } from './types.ts';
+import { HomePage } from './components/HomePage.tsx';
+import { PrivacyPage } from './components/PrivacyPage.tsx';
+import { SettingsPage } from './components/SettingsPage.tsx';
+import { MobileBottomNav } from './components/MobileBottomNav.tsx';
+import type {
+  JournalEntry,
+  JournalTurn,
+  ReflectionMode,
+  UserProfile,
+  AppView,
+  UserPreferences,
+} from './types.ts';
+
+const PREFS_STORAGE_KEY = 'mindmirror_user_prefs';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [isAuthChecking, setIsAuthChecking] = useState<boolean>(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const [isSigningIn, setIsSigningIn] = useState<boolean>(false);
+
+  // Application Shell Navigation
+  const [currentView, setCurrentView] = useState<AppView>('home');
+  const [mobileJournalTab, setMobileJournalTab] = useState<'list' | 'workspace'>('workspace');
+
+  // User Preferences
+  const [preferences, setPreferences] = useState<UserPreferences>(() => {
+    try {
+      const stored = localStorage.getItem(PREFS_STORAGE_KEY);
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch {
+      // fallback
+    }
+    return {
+      defaultMode: 'reflect',
+      showTimestamps: true,
+    };
+  });
 
   // Journal entries state
   const [entries, setEntries] = useState<JournalEntry[]>([]);
@@ -38,6 +71,18 @@ export default function App() {
     mode: ReflectionMode;
   } | null>(null);
 
+  const handleUpdatePreferences = (newPrefs: Partial<UserPreferences>) => {
+    setPreferences((prev) => {
+      const updated = { ...prev, ...newPrefs };
+      try {
+        localStorage.setItem(PREFS_STORAGE_KEY, JSON.stringify(updated));
+      } catch (err) {
+        console.warn('Failed to save preferences to localStorage:', err);
+      }
+      return updated;
+    });
+  };
+
   // Monitor Firebase Auth
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
@@ -51,6 +96,7 @@ export default function App() {
       } else {
         setEntries([]);
         setSelectedEntryId(null);
+        setCurrentView('home');
       }
     });
 
@@ -92,12 +138,13 @@ export default function App() {
       setCurrentUser(null);
       setEntries([]);
       setSelectedEntryId(null);
+      setCurrentView('home');
     } catch (err: any) {
       console.error('Sign Out failed:', err);
     }
   };
 
-  const handleCreateNewEntry = () => {
+  const handleCreateNewEntry = (initialPrompt?: string, mode?: ReflectionMode) => {
     if (!currentUser) return;
 
     const newEntryId = `entry-${Date.now()}`;
@@ -114,11 +161,27 @@ export default function App() {
     setEntries((prev) => [newEntry, ...prev]);
     setSelectedEntryId(newEntryId);
     setActiveError(null);
+    setCurrentView('journal');
+    setMobileJournalTab('workspace');
+
+    // If initial prompt provided, send immediately
+    if (initialPrompt) {
+      handleSendMessage(initialPrompt, mode || preferences.defaultMode);
+    }
   };
 
   const handleSelectEntry = (entry: JournalEntry) => {
     setSelectedEntryId(entry.id);
     setActiveError(null);
+    setMobileJournalTab('workspace');
+  };
+
+  const handleNavigateToJournal = (entryId?: string) => {
+    if (entryId) {
+      setSelectedEntryId(entryId);
+    }
+    setCurrentView('journal');
+    setMobileJournalTab('workspace');
   };
 
   const handleDeleteEntry = async (entryId: string) => {
@@ -308,39 +371,90 @@ export default function App() {
     );
   }
 
-  // Authenticated user -> Private Dashboard
+  // Authenticated user -> Shell & Selected View
   const currentSelectedEntry = entries.find((e) => e.id === selectedEntryId) || null;
 
   return (
     <div id="authenticated-app" className="h-screen flex flex-col bg-stone-100 text-stone-900 font-sans overflow-hidden">
       <Navbar
         user={currentUser}
-        onNewEntry={handleCreateNewEntry}
+        currentView={currentView}
+        onSelectView={setCurrentView}
+        onNewEntry={() => handleCreateNewEntry()}
         onSignOut={handleSignOut}
         isSaving={isSaving}
       />
 
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-        {/* Isolated User History Sidebar */}
-        <SidebarHistory
-          entries={entries}
-          selectedEntryId={selectedEntryId}
-          onSelectEntry={handleSelectEntry}
-          onDeleteEntry={handleDeleteEntry}
-          isLoading={isLoadingEntries}
-        />
+      <main className="flex-1 flex flex-col overflow-hidden relative">
+        {/* View 1: Home Dashboard */}
+        {currentView === 'home' && (
+          <HomePage
+            user={currentUser}
+            entries={entries}
+            onNavigateToJournal={handleNavigateToJournal}
+            onNewEntry={() => handleCreateNewEntry()}
+            onStartWithPrompt={(prompt, mode) => handleCreateNewEntry(prompt, mode)}
+          />
+        )}
 
-        {/* Multi-Turn Reflection & Gemini Workspace */}
-        <EntryWorkspace
-          entry={currentSelectedEntry}
-          onSendMessage={handleSendMessage}
-          onUpdateEntryMeta={handleUpdateEntryMeta}
-          isGenerating={isGenerating}
-          activeError={activeError}
-          onClearError={() => setActiveError(null)}
-          onRetry={handleRetryLast}
-        />
-      </div>
+        {/* View 2: Journal Workspace (Responsive: Side-by-Side on Desktop, Tabbed on Mobile) */}
+        {currentView === 'journal' && (
+          <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+            {/* Sidebar History: Always visible on desktop; on mobile visible only when 'list' tab active */}
+            <div
+              className={`h-full ${
+                mobileJournalTab === 'list' ? 'flex flex-1' : 'hidden md:flex'
+              }`}
+            >
+              <SidebarHistory
+                entries={entries}
+                selectedEntryId={selectedEntryId}
+                onSelectEntry={handleSelectEntry}
+                onDeleteEntry={handleDeleteEntry}
+                isLoading={isLoadingEntries}
+                onSwitchToWorkspace={() => setMobileJournalTab('workspace')}
+              />
+            </div>
+
+            {/* Entry Workspace: Always visible on desktop; on mobile visible only when 'workspace' tab active */}
+            <div
+              className={`h-full flex-1 flex flex-col ${
+                mobileJournalTab === 'workspace' ? 'flex' : 'hidden md:flex'
+              }`}
+            >
+              <EntryWorkspace
+                entry={currentSelectedEntry}
+                onSendMessage={handleSendMessage}
+                onUpdateEntryMeta={handleUpdateEntryMeta}
+                isGenerating={isGenerating}
+                activeError={activeError}
+                onClearError={() => setActiveError(null)}
+                onRetry={handleRetryLast}
+                onBackToList={() => setMobileJournalTab('list')}
+                initialMode={preferences.defaultMode}
+                showTimestamps={preferences.showTimestamps}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* View 3: Privacy & Security Architectural Transparency */}
+        {currentView === 'privacy' && <PrivacyPage user={currentUser} />}
+
+        {/* View 4: Account & Preferences Settings */}
+        {currentView === 'settings' && (
+          <SettingsPage
+            user={currentUser}
+            entries={entries}
+            preferences={preferences}
+            onUpdatePreferences={handleUpdatePreferences}
+            onSignOut={handleSignOut}
+          />
+        )}
+      </main>
+
+      {/* Mobile Bottom Navigation Bar */}
+      <MobileBottomNav currentView={currentView} onSelectView={setCurrentView} />
     </div>
   );
 }

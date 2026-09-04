@@ -8,6 +8,7 @@ interface SidebarHistoryProps {
   onSelectEntry: (entry: JournalEntry) => void;
   onDeleteEntry: (entryId: string) => void;
   isLoading: boolean;
+  onSwitchToWorkspace?: () => void;
 }
 
 export const SidebarHistory: React.FC<SidebarHistoryProps> = ({
@@ -16,6 +17,7 @@ export const SidebarHistory: React.FC<SidebarHistoryProps> = ({
   onSelectEntry,
   onDeleteEntry,
   isLoading,
+  onSwitchToWorkspace,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
@@ -226,6 +228,19 @@ export const SidebarHistory: React.FC<SidebarHistoryProps> = ({
           })
         )}
       </div>
+
+      {selectedEntryId && onSwitchToWorkspace && (
+        <div className="md:hidden p-3 border-t border-stone-200 bg-white">
+          <button
+            id="mobile-open-workspace-btn"
+            onClick={onSwitchToWorkspace}
+            className="w-full py-2 bg-amber-700 hover:bg-amber-800 text-white rounded-xl text-xs font-medium flex items-center justify-center gap-1.5 shadow-xs transition-colors"
+          >
+            <span>Open Workspace</span>
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
     </aside>
   );
 };
