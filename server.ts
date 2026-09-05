@@ -1,7 +1,8 @@
 import express, { Request, Response, NextFunction } from 'express';
 import path from 'path';
+import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, Type } from '@google/genai';
 import { initializeApp, getApps } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
@@ -13,10 +14,29 @@ dotenv.config();
 const app = express();
 const PORT = 3000;
 
-// Initialize Firebase Admin SDK using standard Application Default Credentials (ADC)
+// Read Firebase config from local environment or firebase-applet-config.json
+let firebaseAdminProjectId = process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT;
+let firebaseFirestoreDbId: string | undefined;
+
+try {
+  const configPath = path.resolve(process.cwd(), 'firebase-applet-config.json');
+  if (fs.existsSync(configPath)) {
+    const raw = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    if (raw.projectId && !firebaseAdminProjectId) {
+      firebaseAdminProjectId = raw.projectId;
+    }
+    if (raw.firestoreDatabaseId && raw.firestoreDatabaseId !== '(default)') {
+      firebaseFirestoreDbId = raw.firestoreDatabaseId;
+    }
+  }
+} catch {
+  // Fallback to default credentials
+}
+
+// Initialize Firebase Admin SDK using standard Application Default Credentials (ADC) with project binding
 if (!getApps().length) {
   try {
-    initializeApp();
+    initializeApp(firebaseAdminProjectId ? { projectId: firebaseAdminProjectId } : undefined);
     console.log('[Firebase Admin] Initialized with Application Default Credentials');
   } catch {
     console.warn('[Firebase Admin] Warning during initialization');
@@ -174,12 +194,12 @@ async function generateStructuredInsightsWithFallback(
       const statusCode = err?.status || err?.statusCode || (err?.message?.includes('429') ? 429 : 500);
       const isRecoverable = RECOVERABLE_CODES.includes(statusCode) || err?.message?.includes('RESOURCE_EXHAUSTED');
 
-      console.warn(`[Gemini Fallback] Structured model ${modelName} failed (status: ${statusCode}). Recoverable: ${isRecoverable}.`);
+      console.warn(`[Gemini Fallback] Structured model ${modelName} failed (status: ${statusCode}):`, err?.message || err);
       continue;
     }
   }
 
-  throw new Error('All models in fallback ladder failed for structured insights.');
+  throw new Error(lastError?.message || 'All models in fallback ladder failed for structured insights.');
 }
 
 // Validation helpers for strictly verbatim evidence and bounded lists
@@ -278,27 +298,30 @@ app.post('/api/reflect', requireAuth, async (req: AuthenticatedRequest, res: Res
     let modeGuidance = '';
     switch (mode) {
       case 'summarize':
-        modeGuidance = 'Focus on providing a clear, structured executive synthesis of thoughts, key themes, emotional patterns, and breakthroughs.';
+        modeGuidance = 'Synthesize the writer\'s thoughts into a crisp, high-signal summary: highlight the emotional core, key turning points, and main takeaway in 2-3 brief paragraphs or bulleted takeaways.';
         break;
       case 'brainstorm':
-        modeGuidance = 'Offer creative perspectives, constructive possibilities, probing questions, and fresh angles to explore without being judgmental.';
+        modeGuidance = 'Offer 2-3 novel perspectives, constructive reframes, or fresh angles to look at what was shared. Invite curiosity without being judgmental or prescriptive.';
         break;
       case 'action_plan':
-        modeGuidance = 'Distill the reflection into realistic, mindful, and actionable next steps or micro-habits.';
+        modeGuidance = 'Distill 2-3 mindful, low-friction micro-steps or small habit anchors that respect the user\'s energy and emotional state.';
         break;
       case 'reflect':
       default:
-        modeGuidance = 'Act as an empathetic, thoughtful reflection partner. Offer validating insights, gentle mirrors to the writer\'s feelings, and open-ended contemplative prompts.';
+        modeGuidance = 'Mirror the writer\'s cognitive and emotional landscape empathetically. Note unspoken connections, validate their experience with nuance, and avoid generic cheerleading or cliché platitudes.';
         break;
     }
 
-    const systemInstruction = `You are a private, deeply empathetic reflective journaling companion and cognitive thinking partner.
-Your role:
-- Help the user explore their thoughts, feelings, ambitions, and dilemmas.
-- Respect their emotional space and maintain a warm, grounded, and non-prescriptive tone.
-- Mode focus: ${modeGuidance}
-- Format responses cleanly with readable paragraphs, subtle markdown bullet points where appropriate, and avoid overwhelming the user.
-- If this is a new entry (no prior turns), provide a concise response and conclude with a gentle follow-up question.
+    const systemInstruction = `You are MindMirror, a thoughtful, warm, and observant personal reflection companion.
+Your role is to hold reflective space for the user's journal entries without sounding robotic, generic, or preachy.
+
+Core Reflective Principles:
+1. Thoughtful & Concise: Keep reflections focused and digestible (around 120-220 words). Avoid long lectures, clinical jargon, or flowery filler.
+2. Specific Nuance: Speak directly to the specific situations, feelings, and dilemmas the user described. Never give canned wellness clichés (e.g. avoid "It's so important to remember self-care").
+3. Active Mirroring: Highlight cognitive contradictions, quiet breakthroughs, or unspoken assumptions you notice in what they shared.
+4. Mode Focus: ${modeGuidance}
+5. Meaningful Closure: Conclude with a single, gentle, open inquiry that invites deeper personal contemplation.
+6. Safety: Never diagnose, label mental disorders, or provide medical/psychiatric advice.
 ${titleContext ? `The entry title context is: "${titleContext}".` : ''}`;
 
     const contents = [
@@ -378,83 +401,83 @@ Do not include markdown code block backticks around the JSON if possible, or for
 
 // Phase 2A Schema definition for Gemini structured JSON output
 const INSIGHT_RESPONSE_SCHEMA = {
-  type: 'object',
+  type: Type.OBJECT,
   properties: {
     themes: {
-      type: 'array',
+      type: Type.ARRAY,
       items: {
-        type: 'object',
+        type: Type.OBJECT,
         properties: {
-          observation: { type: 'string' },
-          evidenceQuote: { type: 'string' },
-          sourceTurnId: { type: 'string' },
+          observation: { type: Type.STRING },
+          evidenceQuote: { type: Type.STRING },
+          sourceTurnId: { type: Type.STRING },
         },
         required: ['observation', 'evidenceQuote', 'sourceTurnId'],
       },
     },
     expressedEmotions: {
-      type: 'array',
+      type: Type.ARRAY,
       items: {
-        type: 'object',
+        type: Type.OBJECT,
         properties: {
-          observation: { type: 'string' },
-          evidenceQuote: { type: 'string' },
-          sourceTurnId: { type: 'string' },
+          observation: { type: Type.STRING },
+          evidenceQuote: { type: Type.STRING },
+          sourceTurnId: { type: Type.STRING },
         },
         required: ['observation', 'evidenceQuote', 'sourceTurnId'],
       },
     },
     goals: {
-      type: 'array',
+      type: Type.ARRAY,
       items: {
-        type: 'object',
+        type: Type.OBJECT,
         properties: {
-          observation: { type: 'string' },
-          evidenceQuote: { type: 'string' },
-          sourceTurnId: { type: 'string' },
+          observation: { type: Type.STRING },
+          evidenceQuote: { type: Type.STRING },
+          sourceTurnId: { type: Type.STRING },
         },
         required: ['observation', 'evidenceQuote', 'sourceTurnId'],
       },
     },
     challenges: {
-      type: 'array',
+      type: Type.ARRAY,
       items: {
-        type: 'object',
+        type: Type.OBJECT,
         properties: {
-          observation: { type: 'string' },
-          evidenceQuote: { type: 'string' },
-          sourceTurnId: { type: 'string' },
+          observation: { type: Type.STRING },
+          evidenceQuote: { type: Type.STRING },
+          sourceTurnId: { type: Type.STRING },
         },
         required: ['observation', 'evidenceQuote', 'sourceTurnId'],
       },
     },
     achievements: {
-      type: 'array',
+      type: Type.ARRAY,
       items: {
-        type: 'object',
+        type: Type.OBJECT,
         properties: {
-          observation: { type: 'string' },
-          evidenceQuote: { type: 'string' },
-          sourceTurnId: { type: 'string' },
+          observation: { type: Type.STRING },
+          evidenceQuote: { type: Type.STRING },
+          sourceTurnId: { type: Type.STRING },
         },
         required: ['observation', 'evidenceQuote', 'sourceTurnId'],
       },
     },
     possibleActions: {
-      type: 'array',
-      items: { type: 'string' },
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
     },
     peopleMentioned: {
-      type: 'array',
-      items: { type: 'string' },
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
     },
     placesMentioned: {
-      type: 'array',
-      items: { type: 'string' },
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
     },
     openQuestions: {
-      type: 'array',
-      items: { type: 'string' },
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
     },
   },
   required: [
@@ -497,23 +520,16 @@ app.post('/api/insights', requireAuth, async (req: AuthenticatedRequest, res: Re
       return res.status(400).json({ error: 'Valid entryId is required.' });
     }
 
-    // Construct path using verified UID only
-    const db = getFirestore();
-    const entryRef = db.collection('users').doc(verifiedUid).collection('entries').doc(entryId);
-    const entryDoc = await entryRef.get();
+    // Extract turns and update timestamp from request body or server Firestore
+    let rawTurns = Array.isArray(body.turns) ? body.turns : [];
+    let entryUpdatedAt = typeof body.entryUpdatedAt === 'number' ? body.entryUpdatedAt : Date.now();
 
-    if (!entryDoc.exists) {
-      return res.status(404).json({ error: 'Journal reflection not found.' });
-    }
+    // Cache check & server Firestore fallback (non-fatal if server ADC lacks IAM roles)
+    try {
+      const db = firebaseFirestoreDbId ? getFirestore(firebaseFirestoreDbId) : getFirestore();
+      const insightRef = db.collection('users').doc(verifiedUid).collection('insights').doc(`insight_${entryId}`);
 
-    const entryData = entryDoc.data() || {};
-    const entryUpdatedAt = typeof entryData.updatedAt === 'number' ? entryData.updatedAt : 0;
-
-    // Cache check with deterministic insight ID (insight_{entryId})
-    const insightRef = db.collection('users').doc(verifiedUid).collection('insights').doc(`insight_${entryId}`);
-
-    if (!forceRegenerate) {
-      try {
+      if (!forceRegenerate) {
         const cachedSnap = await insightRef.get();
         if (cachedSnap.exists) {
           const cachedData = cachedSnap.data() as ReflectionInsight;
@@ -525,13 +541,24 @@ app.post('/api/insights', requireAuth, async (req: AuthenticatedRequest, res: Re
             return res.json({ insight: cachedData, cached: true });
           }
         }
-      } catch {
-        console.warn('[Insights Cache] Could not read existing insight');
       }
+
+      if (rawTurns.length === 0) {
+        const entryRef = db.collection('users').doc(verifiedUid).collection('entries').doc(entryId);
+        const entryDoc = await entryRef.get();
+        if (entryDoc.exists) {
+          const entryData = entryDoc.data() || {};
+          rawTurns = Array.isArray(entryData.turns) ? entryData.turns : [];
+          if (typeof entryData.updatedAt === 'number') {
+            entryUpdatedAt = entryData.updatedAt;
+          }
+        }
+      }
+    } catch (dbNotice: any) {
+      console.warn('[Insights Cache] Server Firestore notice:', dbNotice?.code || dbNotice?.message);
     }
 
     // Extract user turns
-    const rawTurns = Array.isArray(entryData.turns) ? entryData.turns : [];
     const userTurns = rawTurns.filter(
       (t: any) =>
         t &&
@@ -657,19 +684,21 @@ OUTPUT CONSTRAINTS:
       version: 1,
     };
 
-    // Persist validated insight in user's private Firestore partition
+    // Attempt to persist validated insight in user's private Firestore partition if server has admin access
     try {
+      const db = firebaseFirestoreDbId ? getFirestore(firebaseFirestoreDbId) : getFirestore();
+      const insightRef = db.collection('users').doc(verifiedUid).collection('insights').doc(`insight_${entryId}`);
       await insightRef.set(finalInsight);
     } catch {
-      console.error('[Insights] Failed to save insight to Firestore');
-      return res.status(500).json({ error: 'Failed to persist generated insight to private database.' });
+      // Non-fatal on server: client also persists insight using its authenticated Firebase session
+      console.warn('[Insights] Server insight save notice (persisting on client side)');
     }
 
     return res.json({ insight: finalInsight });
-  } catch {
-    console.error('[Insights] Unexpected error during insight generation');
+  } catch (err: any) {
+    console.error('[Insights] Error during insight generation:', err?.message || err);
     return res.status(500).json({
-      error: 'An unexpected error occurred during reflection exploration.',
+      error: err?.message || 'An unexpected error occurred during reflection exploration.',
     });
   }
 });

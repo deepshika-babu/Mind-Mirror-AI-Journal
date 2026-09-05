@@ -147,6 +147,51 @@ export const HomePage: React.FC<HomePageProps> = ({
           <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-linear-to-l from-amber-50/50 to-transparent pointer-events-none hidden md:block" />
         </section>
 
+        {/* 3-Step Guided Journey Overview */}
+        <section className="bg-white/80 border border-stone-200/90 rounded-2xl p-5 shadow-2xs">
+          <div className="flex items-center justify-between mb-3 px-1">
+            <h2 className={tokens.typography.metaEyebrow}>How MindMirror Works</h2>
+            <span className="text-[11px] text-stone-500">Journal → Reflection → Insights</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="p-3.5 rounded-xl bg-stone-50 border border-stone-200/70 flex items-start gap-3">
+              <div className="w-7 h-7 rounded-lg bg-amber-100/80 text-amber-900 flex items-center justify-center text-xs font-mono font-bold shrink-0 mt-0.5">
+                1
+              </div>
+              <div className="space-y-0.5">
+                <h3 className="text-xs font-semibold text-stone-900">Write Privately</h3>
+                <p className="text-[11px] text-stone-600 leading-relaxed">
+                  Record candid thoughts, emotions, or dilemmas in a private multi-turn dialogue.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-stone-50 border border-stone-200/70 flex items-start gap-3">
+              <div className="w-7 h-7 rounded-lg bg-amber-100/80 text-amber-900 flex items-center justify-center text-xs font-mono font-bold shrink-0 mt-0.5">
+                2
+              </div>
+              <div className="space-y-0.5">
+                <h3 className="text-xs font-semibold text-stone-900">Mindful Reflection</h3>
+                <p className="text-[11px] text-stone-600 leading-relaxed">
+                  Gemini mirrors your cognitive patterns with empathy, concise reframes, and gentle inquiry.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-stone-50 border border-stone-200/70 flex items-start gap-3">
+              <div className="w-7 h-7 rounded-lg bg-amber-100/80 text-amber-900 flex items-center justify-center text-xs font-mono font-bold shrink-0 mt-0.5">
+                3
+              </div>
+              <div className="space-y-0.5">
+                <h3 className="text-xs font-semibold text-stone-900">Grounded Insights</h3>
+                <p className="text-[11px] text-stone-600 leading-relaxed">
+                  Explore themes, feelings, and micro-actions strictly justified by verbatim quotes from your writing.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Real Firestore Statistics Grid */}
         <section className="space-y-3">
           <div className="flex items-center justify-between">

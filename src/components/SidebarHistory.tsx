@@ -6,7 +6,7 @@ interface SidebarHistoryProps {
   entries: JournalEntry[];
   selectedEntryId: string | null;
   onSelectEntry: (entry: JournalEntry) => void;
-  onDeleteEntry: (entryId: string) => void;
+  onRequestDeleteEntry: (entry: JournalEntry) => void;
   isLoading: boolean;
   onSwitchToWorkspace?: () => void;
 }
@@ -15,13 +15,12 @@ export const SidebarHistory: React.FC<SidebarHistoryProps> = ({
   entries,
   selectedEntryId,
   onSelectEntry,
-  onDeleteEntry,
+  onRequestDeleteEntry,
   isLoading,
   onSwitchToWorkspace,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // Extract all unique tags
   const allTags = useMemo(() => {
@@ -188,38 +187,21 @@ export const SidebarHistory: React.FC<SidebarHistoryProps> = ({
 
                   {/* Actions */}
                   <div className="flex items-center gap-1">
-                    {confirmDeleteId === entry.id ? (
-                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={() => {
-                            onDeleteEntry(entry.id);
-                            setConfirmDeleteId(null);
-                          }}
-                          className="px-1.5 py-0.5 bg-rose-600 text-white rounded text-[10px] font-semibold hover:bg-rose-700"
-                        >
-                          Confirm
-                        </button>
-                        <button
-                          onClick={() => setConfirmDeleteId(null)}
-                          className="px-1.5 py-0.5 bg-stone-200 text-stone-700 rounded text-[10px]"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setConfirmDeleteId(entry.id);
-                        }}
-                        className="opacity-0 group-hover:opacity-100 p-1 text-stone-600 hover:text-rose-600 rounded transition-opacity"
-                        title="Delete reflection"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
+                    <button
+                      id={`delete-entry-btn-${entry.id}`}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRequestDeleteEntry(entry);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 p-1 text-stone-400 hover:text-rose-600 rounded-md hover:bg-rose-50 transition-all cursor-pointer"
+                      title="Delete reflection"
+                      aria-label={`Delete reflection ${entry.title || 'Untitled'}`}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                     <ChevronRight
-                      className={`w-3.5 h-3.5 text-stone-600 ${isSelected ? 'text-amber-800' : ''}`}
+                      className={`w-3.5 h-3.5 text-stone-400 ${isSelected ? 'text-amber-800' : ''}`}
                     />
                   </div>
                 </div>

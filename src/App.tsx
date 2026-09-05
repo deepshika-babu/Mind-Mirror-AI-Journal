@@ -18,6 +18,7 @@ import { HomePage } from './components/HomePage.tsx';
 import { PrivacyPage } from './components/PrivacyPage.tsx';
 import { SettingsPage } from './components/SettingsPage.tsx';
 import { MobileBottomNav } from './components/MobileBottomNav.tsx';
+import { DeleteConfirmationModal } from './components/DeleteConfirmationModal.tsx';
 import type {
   JournalEntry,
   JournalTurn,
@@ -64,6 +65,10 @@ export default function App() {
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [activeError, setActiveError] = useState<string | null>(null);
+
+  // Deletion confirmation dialogue state
+  const [entryPendingDelete, setEntryPendingDelete] = useState<JournalEntry | null>(null);
+  const [isDeletingEntry, setIsDeletingEntry] = useState<boolean>(false);
 
   // Pending retry context
   const [lastFailedSubmission, setLastFailedSubmission] = useState<{
@@ -164,9 +169,9 @@ export default function App() {
     setCurrentView('journal');
     setMobileJournalTab('workspace');
 
-    // If initial prompt provided, send immediately
+    // If initial prompt provided, send immediately targeting the newly instantiated entry
     if (initialPrompt) {
-      handleSendMessage(initialPrompt, mode || preferences.defaultMode);
+      handleSendMessage(initialPrompt, mode || preferences.defaultMode, newEntry);
     }
   };
 
@@ -184,19 +189,28 @@ export default function App() {
     setMobileJournalTab('workspace');
   };
 
-  const handleDeleteEntry = async (entryId: string) => {
-    if (!currentUser) return;
-    try {
-      await deleteUserEntry(currentUser.uid, entryId);
-      setEntries((prev) => prev.filter((e) => e.id !== entryId));
+  const handleRequestDeleteEntry = (entry: JournalEntry) => {
+    setEntryPendingDelete(entry);
+  };
 
-      if (selectedEntryId === entryId) {
-        const remaining = entries.filter((e) => e.id !== entryId);
+  const handleConfirmDeleteEntry = async () => {
+    if (!currentUser || !entryPendingDelete) return;
+    const entryIdToDelete = entryPendingDelete.id;
+    setIsDeletingEntry(true);
+    try {
+      await deleteUserEntry(currentUser.uid, entryIdToDelete);
+      setEntries((prev) => prev.filter((e) => e.id !== entryIdToDelete));
+
+      if (selectedEntryId === entryIdToDelete) {
+        const remaining = entries.filter((e) => e.id !== entryIdToDelete);
         setSelectedEntryId(remaining.length > 0 ? remaining[0].id : null);
       }
+      setEntryPendingDelete(null);
     } catch {
       console.error('Failed to delete entry from Firestore');
       setActiveError('Failed to delete entry from Firestore.');
+    } finally {
+      setIsDeletingEntry(false);
     }
   };
 
@@ -234,10 +248,10 @@ export default function App() {
    * and the user's input buffer is preserved.
    */
   const handleSendMessage = useCallback(
-    async (prompt: string, mode: ReflectionMode) => {
+    async (prompt: string, mode: ReflectionMode, entryOverride?: JournalEntry) => {
       if (!currentUser) return;
 
-      let targetEntry = entries.find((e) => e.id === selectedEntryId);
+      let targetEntry = entryOverride || entries.find((e) => e.id === selectedEntryId);
 
       // If no entry exists yet, instantiate one automatically
       if (!targetEntry) {
@@ -251,13 +265,7 @@ export default function App() {
           createdAt: Date.now(),
           updatedAt: Date.now(),
         };
-        setEntries((prev) => [targetEntry!, ...prev]);
-        setSelectedEntryId(newEntryId);
       }
-
-      setIsGenerating(true);
-      setActiveError(null);
-      setLastFailedSubmission({ prompt, mode });
 
       const userTurn: JournalTurn = {
         id: `turn-${Date.now()}-user`,
@@ -266,6 +274,31 @@ export default function App() {
         timestamp: Date.now(),
         mode,
       };
+
+      // Immediately place user turn in state so the right-aligned bubble appears without delay
+      const entryWithUserTurn: JournalEntry = {
+        ...targetEntry,
+        turns: [...targetEntry.turns, userTurn],
+        updatedAt: Date.now(),
+      };
+
+      setEntries((prev) => {
+        const exists = prev.some((e) => e.id === entryWithUserTurn.id);
+        if (exists) {
+          return prev.map((e) => (e.id === entryWithUserTurn.id ? entryWithUserTurn : e));
+        }
+        return [entryWithUserTurn, ...prev];
+      });
+      setSelectedEntryId(entryWithUserTurn.id);
+
+      // Input-to-save persistence guarantee: save user turn to Firestore immediately
+      saveUserEntry(currentUser.uid, entryWithUserTurn).catch((saveErr) => {
+        console.warn('Initial user turn save notice:', saveErr);
+      });
+
+      setIsGenerating(true);
+      setActiveError(null);
+      setLastFailedSubmission({ prompt, mode });
 
       // Prepare conversation history for multi-turn Gemini API
       const historyForApi = targetEntry.turns.map((turn) => ({
@@ -291,7 +324,7 @@ export default function App() {
           modelUsed: reflectionResult.modelUsed,
         };
 
-        const updatedTurns = [...targetEntry.turns, userTurn, geminiTurn];
+        const updatedTurns = [...entryWithUserTurn.turns, geminiTurn];
 
         let updatedTitle = targetEntry.title;
         let updatedSummary = targetEntry.summary;
@@ -312,7 +345,7 @@ export default function App() {
         }
 
         const completedEntry: JournalEntry = {
-          ...targetEntry,
+          ...entryWithUserTurn,
           title: updatedTitle,
           summary: updatedSummary,
           tags: updatedTags,
@@ -325,9 +358,14 @@ export default function App() {
         await saveUserEntry(currentUser.uid, completedEntry);
 
         // Update local React state with confirmed persisted data
-        setEntries((prev) =>
-          prev.map((e) => (e.id === completedEntry.id ? completedEntry : e))
-        );
+        setEntries((prev) => {
+          const exists = prev.some((e) => e.id === completedEntry.id);
+          if (exists) {
+            return prev.map((e) => (e.id === completedEntry.id ? completedEntry : e));
+          }
+          return [completedEntry, ...prev];
+        });
+        setSelectedEntryId(completedEntry.id);
 
         // Success: clear failed submission tracking
         setLastFailedSubmission(null);
@@ -410,7 +448,7 @@ export default function App() {
                 entries={entries}
                 selectedEntryId={selectedEntryId}
                 onSelectEntry={handleSelectEntry}
-                onDeleteEntry={handleDeleteEntry}
+                onRequestDeleteEntry={handleRequestDeleteEntry}
                 isLoading={isLoadingEntries}
                 onSwitchToWorkspace={() => setMobileJournalTab('workspace')}
               />
@@ -426,6 +464,7 @@ export default function App() {
                 entry={currentSelectedEntry}
                 onSendMessage={handleSendMessage}
                 onUpdateEntryMeta={handleUpdateEntryMeta}
+                onRequestDelete={handleRequestDeleteEntry}
                 isGenerating={isGenerating}
                 activeError={activeError}
                 onClearError={() => setActiveError(null)}
@@ -455,6 +494,19 @@ export default function App() {
 
       {/* Mobile Bottom Navigation Bar */}
       <MobileBottomNav currentView={currentView} onSelectView={setCurrentView} />
+
+      {/* Delete Confirmation Dialogue Box */}
+      <DeleteConfirmationModal
+        isOpen={entryPendingDelete !== null}
+        entry={entryPendingDelete}
+        isDeleting={isDeletingEntry}
+        onConfirm={handleConfirmDeleteEntry}
+        onCancel={() => {
+          if (!isDeletingEntry) {
+            setEntryPendingDelete(null);
+          }
+        }}
+      />
     </div>
   );
 }

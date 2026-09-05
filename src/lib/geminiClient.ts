@@ -3,12 +3,13 @@ import type {
   ReflectionMode,
   ReflectionResponse,
   ReflectionInsight,
+  JournalEntry,
 } from '../types.ts';
 
 /**
  * Acquire fresh Firebase ID token from current authenticated user
  */
-async function getAuthHeaders(): Promise<{ 'Content-Type': string; Authorization?: string }> {
+async function getAuthHeaders(forceRefresh = false): Promise<{ 'Content-Type': string; Authorization?: string }> {
   const headers: { 'Content-Type': string; Authorization?: string } = {
     'Content-Type': 'application/json',
   };
@@ -16,7 +17,7 @@ async function getAuthHeaders(): Promise<{ 'Content-Type': string; Authorization
   const currentUser = auth.currentUser;
   if (currentUser) {
     try {
-      const idToken = await currentUser.getIdToken();
+      const idToken = await currentUser.getIdToken(forceRefresh);
       headers.Authorization = `Bearer ${idToken}`;
     } catch {
       console.warn('Could not retrieve Firebase ID token');
@@ -35,12 +36,24 @@ export async function requestReflection(params: {
   mode?: ReflectionMode;
   titleContext?: string;
 }): Promise<ReflectionResponse> {
-  const headers = await getAuthHeaders();
-  const response = await fetch('/api/reflect', {
+  let headers = await getAuthHeaders(false);
+  let response = await fetch('/api/reflect', {
     method: 'POST',
     headers,
     body: JSON.stringify(params),
   });
+
+  // If unauthorized, force-refresh the Firebase ID token and retry once
+  if (response.status === 401 && auth.currentUser) {
+    headers = await getAuthHeaders(true);
+    if (headers.Authorization) {
+      response = await fetch('/api/reflect', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(params),
+      });
+    }
+  }
 
   if (!response.ok) {
     const errData = await response.json().catch(() => ({}));
@@ -59,12 +72,23 @@ export async function generateEntryMetadata(text: string): Promise<{
   summary: string;
   tags: string[];
 }> {
-  const headers = await getAuthHeaders();
-  const response = await fetch('/api/summarize-entry', {
+  let headers = await getAuthHeaders(false);
+  let response = await fetch('/api/summarize-entry', {
     method: 'POST',
     headers,
     body: JSON.stringify({ text }),
   });
+
+  if (response.status === 401 && auth.currentUser) {
+    headers = await getAuthHeaders(true);
+    if (headers.Authorization) {
+      response = await fetch('/api/summarize-entry', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ text }),
+      });
+    }
+  }
 
   if (!response.ok) {
     return {
@@ -81,19 +105,44 @@ export async function generateEntryMetadata(text: string): Promise<{
  * Phase 2A: Single-entry, user-triggered, evidence-grounded reflection insights
  */
 export async function requestEntryInsights(
-  entryId: string,
+  entryInput: JournalEntry | string,
   forceRegenerate: boolean = false
 ): Promise<ReflectionInsight> {
-  const headers = await getAuthHeaders();
+  const entryId = typeof entryInput === 'string' ? entryInput : entryInput.id;
+  const turns = typeof entryInput === 'object' && Array.isArray(entryInput.turns) ? entryInput.turns : undefined;
+  const entryTitle = typeof entryInput === 'object' ? entryInput.title : undefined;
+  const entryUpdatedAt = typeof entryInput === 'object' ? entryInput.updatedAt : undefined;
+
+  let headers = await getAuthHeaders(false);
   if (!headers.Authorization) {
     throw new Error('You must be signed in to explore reflection insights.');
   }
 
-  const response = await fetch('/api/insights', {
+  const payload = {
+    entryId,
+    forceRegenerate,
+    turns,
+    entryTitle,
+    entryUpdatedAt,
+  };
+
+  let response = await fetch('/api/insights', {
     method: 'POST',
     headers,
-    body: JSON.stringify({ entryId, forceRegenerate }),
+    body: JSON.stringify(payload),
   });
+
+  // If unauthorized, force-refresh the Firebase ID token and retry once
+  if (response.status === 401 && auth.currentUser) {
+    headers = await getAuthHeaders(true);
+    if (headers.Authorization) {
+      response = await fetch('/api/insights', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+      });
+    }
+  }
 
   if (!response.ok) {
     const errData = await response.json().catch(() => ({}));

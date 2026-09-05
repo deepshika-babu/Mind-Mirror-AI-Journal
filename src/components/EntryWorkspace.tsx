@@ -17,16 +17,18 @@ import {
   ArrowLeft,
   MessageSquare,
   RefreshCw,
+  Trash2,
 } from 'lucide-react';
 import type { JournalEntry, JournalTurn, ReflectionMode, ReflectionInsight } from '../types.ts';
 import { requestEntryInsights } from '../lib/geminiClient.ts';
-import { fetchUserInsight } from '../lib/firebase.ts';
+import { fetchUserInsight, saveUserInsight } from '../lib/firebase.ts';
 import { ReflectionInsightCard } from './ReflectionInsightCard.tsx';
 
 interface EntryWorkspaceProps {
   entry: JournalEntry | null;
   onSendMessage: (prompt: string, mode: ReflectionMode) => Promise<void>;
   onUpdateEntryMeta: (updates: Partial<JournalEntry>) => Promise<void>;
+  onRequestDelete?: (entry: JournalEntry) => void;
   isGenerating: boolean;
   activeError: string | null;
   onClearError: () => void;
@@ -79,6 +81,7 @@ export const EntryWorkspace: React.FC<EntryWorkspaceProps> = ({
   entry,
   onSendMessage,
   onUpdateEntryMeta,
+  onRequestDelete,
   isGenerating,
   activeError,
   onClearError,
@@ -170,10 +173,13 @@ export const EntryWorkspace: React.FC<EntryWorkspaceProps> = ({
     setActiveTab('insights');
 
     try {
-      const generated = await requestEntryInsights(entry.id, forceRegenerate);
+      const generated = await requestEntryInsights(entry, forceRegenerate);
       setInsight(generated);
+      if (entry.userId) {
+        await saveUserInsight(entry.userId, generated);
+      }
     } catch (err: any) {
-      console.error('Failed to explore reflection insights');
+      console.error('Failed to explore reflection insights:', err);
       setInsightError(err?.message || 'Failed to explore reflection insights. Please try again.');
     } finally {
       setIsLoadingInsight(false);
@@ -379,6 +385,19 @@ ${turn.content}
               <Download className="w-3.5 h-3.5 text-stone-500" />
               <span className="hidden sm:inline">Export</span>
             </button>
+
+            {onRequestDelete && (
+              <button
+                id="delete-current-entry-btn"
+                type="button"
+                onClick={() => onRequestDelete(entry)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[36px] rounded-xl border border-stone-200 text-xs font-medium text-stone-600 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-200 transition-colors cursor-pointer"
+                title="Delete reflection"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Delete</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -494,12 +513,33 @@ ${turn.content}
                     {PROMPT_SEEDS.map((seed, idx) => (
                       <button
                         key={idx}
-                        onClick={() => setInputPrompt(seed)}
+                        onClick={() => {
+                          setInputPrompt(seed);
+                          textareaRef.current?.focus();
+                        }}
                         className="p-3 text-xs text-stone-700 bg-stone-50/80 hover:bg-amber-50/60 border border-stone-200/80 hover:border-amber-200 rounded-xl text-left transition-all cursor-pointer leading-relaxed"
                       >
                         &ldquo;{seed}&rdquo;
                       </button>
                     ))}
+                  </div>
+                </div>
+
+                {/* 3-Step Guided Overview */}
+                <div className="flex items-center justify-center gap-2 sm:gap-6 pt-6 text-xs text-stone-500 border-t border-stone-100 max-w-lg mx-auto flex-wrap">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-4 h-4 rounded-full bg-amber-100 text-amber-900 font-mono text-[10px] flex items-center justify-center font-bold">1</span>
+                    <span>Write naturally</span>
+                  </div>
+                  <span className="text-stone-300">→</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-4 h-4 rounded-full bg-amber-100 text-amber-900 font-mono text-[10px] flex items-center justify-center font-bold">2</span>
+                    <span>Reflect with AI</span>
+                  </div>
+                  <span className="text-stone-300">→</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-4 h-4 rounded-full bg-amber-100 text-amber-900 font-mono text-[10px] flex items-center justify-center font-bold">3</span>
+                    <span>Grounded insights</span>
                   </div>
                 </div>
               </div>
@@ -514,9 +554,16 @@ ${turn.content}
                       className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}
                     >
                       <div className="flex items-center gap-2 mb-1.5 px-1">
-                        <span className="text-xs font-serif font-semibold text-stone-800">
-                          {isUser ? 'You' : 'MindMirror'}
-                        </span>
+                        {isUser ? (
+                          <span className="text-xs font-serif font-semibold text-stone-700">You</span>
+                        ) : (
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-4 h-4 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center shadow-2xs">
+                              <Sparkles className="w-2.5 h-2.5" />
+                            </div>
+                            <span className="text-xs font-serif font-semibold text-stone-900">MindMirror</span>
+                          </div>
+                        )}
                         {showTimestamps && (
                           <span className="text-[10px] text-stone-400">
                             {new Date(turn.timestamp).toLocaleTimeString([], {
@@ -535,8 +582,8 @@ ${turn.content}
                       <div
                         className={`group relative max-w-2xl rounded-2xl p-4 sm:p-5 text-sm leading-relaxed transition-all ${
                           isUser
-                            ? 'bg-amber-700 text-white rounded-tr-xs shadow-xs'
-                            : 'bg-stone-50/90 text-stone-900 border border-stone-200/90 rounded-tl-xs shadow-2xs'
+                            ? 'bg-amber-800 text-white rounded-tr-xs shadow-xs'
+                            : 'bg-stone-50/95 text-stone-900 border border-stone-200/90 border-l-3 border-l-amber-600 rounded-tl-xs shadow-2xs'
                         }`}
                       >
                         {isUser ? (
@@ -568,6 +615,39 @@ ${turn.content}
                     </div>
                   );
                 })}
+
+                {/* Natural Explore Insights Next Step */}
+                {!isGenerating && entry.turns.length > 0 && (
+                  <div
+                    id="explore-insights-inline-banner"
+                    className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-amber-100/80 text-amber-900 border border-amber-200/60 flex items-center justify-center shrink-0">
+                        <Sparkles className="w-4 h-4 text-amber-700" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-stone-900">
+                          {insight ? 'Grounded Insights Ready' : 'Explore Grounded Insights'}
+                        </p>
+                        <p className="text-[11px] text-stone-600 leading-snug">
+                          {insight
+                            ? 'Themes, expressed emotions, and verbatim quotes are distilled for this reflection.'
+                            : 'MindMirror can extract themes, emotions, and mindful next steps anchored strictly in what you wrote.'}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleExploreInsights(false)}
+                      disabled={isLoadingInsight}
+                      className="px-4 py-2 min-h-[36px] rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium inline-flex items-center gap-1.5 shrink-0 transition-all shadow-xs cursor-pointer active:scale-95 disabled:opacity-50"
+                    >
+                      <Compass className="w-3.5 h-3.5 text-amber-400" />
+                      <span>{insight ? 'View Insights →' : 'Explore Insights →'}</span>
+                    </button>
+                  </div>
+                )}
 
                 {isGenerating && (
                   <div className="flex flex-col items-start max-w-2xl">

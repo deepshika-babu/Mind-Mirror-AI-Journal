@@ -13,6 +13,7 @@ import {
   Lightbulb,
   Clock,
   Compass,
+  Heart,
 } from 'lucide-react';
 import type { ReflectionInsight, JournalEntry } from '../types.ts';
 
@@ -132,30 +133,32 @@ export const ReflectionInsightCard: React.FC<ReflectionInsightCardProps> = ({
               Themes &amp; Patterns
             </h4>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
             {insight.themes.map((theme, index) => (
               <div
                 key={`theme-${index}`}
                 id={`insight-theme-${index}`}
-                className="bg-white border border-stone-200/90 rounded-2xl p-4 shadow-2xs space-y-2.5"
+                className="bg-white border border-stone-200/90 rounded-2xl p-4 sm:p-5 shadow-2xs space-y-3"
               >
-                <div className="space-y-1">
-                  <span className="text-[10px] font-mono font-semibold uppercase tracking-wider text-amber-800 bg-amber-50 border border-amber-200/60 px-2 py-0.5 rounded-md inline-block">
-                    What MindMirror Noticed
+                <div className="space-y-1.5">
+                  <span className="text-[10px] font-mono font-semibold uppercase tracking-wider text-amber-900 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-md inline-block">
+                    Observation
                   </span>
-                  <p className="text-sm font-medium text-stone-900 leading-snug">
+                  <p className="text-sm font-semibold text-stone-900 leading-snug">
                     {theme.observation}
                   </p>
                 </div>
 
                 <div className="pt-2 border-t border-stone-100">
-                  <span className="text-[10px] font-mono text-stone-400 uppercase tracking-wider block mb-1">
-                    What You Wrote
-                  </span>
-                  <blockquote className="text-xs text-stone-700 italic bg-stone-50 p-2.5 rounded-xl border border-stone-200/60 leading-relaxed flex items-start gap-1.5">
-                    <Quote className="w-3 h-3 text-stone-400 shrink-0 mt-0.5" />
-                    <span>&ldquo;{theme.evidenceQuote}&rdquo;</span>
-                  </blockquote>
+                  <div className="bg-amber-50/50 border border-amber-200/70 rounded-xl p-3 space-y-1">
+                    <span className="text-[10px] font-mono font-semibold text-amber-900 uppercase tracking-wider flex items-center gap-1">
+                      <Quote className="w-2.5 h-2.5 text-amber-700" />
+                      Verbatim Quote From Your Journal:
+                    </span>
+                    <blockquote className="text-xs font-serif italic text-stone-800 leading-relaxed pl-1">
+                      &ldquo;{theme.evidenceQuote}&rdquo;
+                    </blockquote>
+                  </div>
                 </div>
               </div>
             ))}
@@ -167,35 +170,37 @@ export const ReflectionInsightCard: React.FC<ReflectionInsightCardProps> = ({
       {insight.expressedEmotions.length > 0 && (
         <section id="insight-section-emotions" className="space-y-3">
           <div className="flex items-center gap-2 px-1">
-            <HeartPulseIcon className="w-4 h-4 text-rose-700" />
+            <Heart className="w-4 h-4 text-rose-700" />
             <h4 className="font-serif text-sm font-semibold text-stone-900 tracking-wide uppercase">
               Expressed Feelings &amp; States
             </h4>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
             {insight.expressedEmotions.map((emotion, index) => (
               <div
                 key={`emotion-${index}`}
                 id={`insight-emotion-${index}`}
-                className="bg-white border border-stone-200/90 rounded-2xl p-4 shadow-2xs space-y-2.5"
+                className="bg-white border border-stone-200/90 rounded-2xl p-4 sm:p-5 shadow-2xs space-y-3"
               >
-                <div className="space-y-1">
-                  <span className="text-[10px] font-mono font-semibold uppercase tracking-wider text-rose-800 bg-rose-50 border border-rose-200/60 px-2 py-0.5 rounded-md inline-block">
-                    What MindMirror Noticed
+                <div className="space-y-1.5">
+                  <span className="text-[10px] font-mono font-semibold uppercase tracking-wider text-rose-900 bg-rose-50 border border-rose-200/80 px-2 py-0.5 rounded-md inline-block">
+                    Observation
                   </span>
-                  <p className="text-sm font-medium text-stone-900 leading-snug">
+                  <p className="text-sm font-semibold text-stone-900 leading-snug">
                     {emotion.observation}
                   </p>
                 </div>
 
                 <div className="pt-2 border-t border-stone-100">
-                  <span className="text-[10px] font-mono text-stone-400 uppercase tracking-wider block mb-1">
-                    What You Wrote
-                  </span>
-                  <blockquote className="text-xs text-stone-700 italic bg-stone-50 p-2.5 rounded-xl border border-stone-200/60 leading-relaxed flex items-start gap-1.5">
-                    <Quote className="w-3 h-3 text-stone-400 shrink-0 mt-0.5" />
-                    <span>&ldquo;{emotion.evidenceQuote}&rdquo;</span>
-                  </blockquote>
+                  <div className="bg-rose-50/40 border border-rose-200/70 rounded-xl p-3 space-y-1">
+                    <span className="text-[10px] font-mono font-semibold text-rose-900 uppercase tracking-wider flex items-center gap-1">
+                      <Quote className="w-2.5 h-2.5 text-rose-700" />
+                      Verbatim Quote From Your Journal:
+                    </span>
+                    <blockquote className="text-xs font-serif italic text-stone-800 leading-relaxed pl-1">
+                      &ldquo;{emotion.evidenceQuote}&rdquo;
+                    </blockquote>
+                  </div>
                 </div>
               </div>
             ))}
@@ -212,30 +217,32 @@ export const ReflectionInsightCard: React.FC<ReflectionInsightCardProps> = ({
               Goals &amp; Intentions
             </h4>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
             {insight.goals.map((goal, index) => (
               <div
                 key={`goal-${index}`}
                 id={`insight-goal-${index}`}
-                className="bg-white border border-stone-200/90 rounded-2xl p-4 shadow-2xs space-y-2.5"
+                className="bg-white border border-stone-200/90 rounded-2xl p-4 sm:p-5 shadow-2xs space-y-3"
               >
-                <div className="space-y-1">
-                  <span className="text-[10px] font-mono font-semibold uppercase tracking-wider text-teal-800 bg-teal-50 border border-teal-200/60 px-2 py-0.5 rounded-md inline-block">
-                    What MindMirror Noticed
+                <div className="space-y-1.5">
+                  <span className="text-[10px] font-mono font-semibold uppercase tracking-wider text-teal-900 bg-teal-50 border border-teal-200/80 px-2 py-0.5 rounded-md inline-block">
+                    Observation
                   </span>
-                  <p className="text-sm font-medium text-stone-900 leading-snug">
+                  <p className="text-sm font-semibold text-stone-900 leading-snug">
                     {goal.observation}
                   </p>
                 </div>
 
                 <div className="pt-2 border-t border-stone-100">
-                  <span className="text-[10px] font-mono text-stone-400 uppercase tracking-wider block mb-1">
-                    What You Wrote
-                  </span>
-                  <blockquote className="text-xs text-stone-700 italic bg-stone-50 p-2.5 rounded-xl border border-stone-200/60 leading-relaxed flex items-start gap-1.5">
-                    <Quote className="w-3 h-3 text-stone-400 shrink-0 mt-0.5" />
-                    <span>&ldquo;{goal.evidenceQuote}&rdquo;</span>
-                  </blockquote>
+                  <div className="bg-teal-50/40 border border-teal-200/70 rounded-xl p-3 space-y-1">
+                    <span className="text-[10px] font-mono font-semibold text-teal-900 uppercase tracking-wider flex items-center gap-1">
+                      <Quote className="w-2.5 h-2.5 text-teal-700" />
+                      Verbatim Quote From Your Journal:
+                    </span>
+                    <blockquote className="text-xs font-serif italic text-stone-800 leading-relaxed pl-1">
+                      &ldquo;{goal.evidenceQuote}&rdquo;
+                    </blockquote>
+                  </div>
                 </div>
               </div>
             ))}
@@ -252,30 +259,32 @@ export const ReflectionInsightCard: React.FC<ReflectionInsightCardProps> = ({
               Tensions &amp; Obstacles
             </h4>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
             {insight.challenges.map((challenge, index) => (
               <div
                 key={`challenge-${index}`}
                 id={`insight-challenge-${index}`}
-                className="bg-white border border-stone-200/90 rounded-2xl p-4 shadow-2xs space-y-2.5"
+                className="bg-white border border-stone-200/90 rounded-2xl p-4 sm:p-5 shadow-2xs space-y-3"
               >
-                <div className="space-y-1">
-                  <span className="text-[10px] font-mono font-semibold uppercase tracking-wider text-amber-800 bg-amber-50 border border-amber-200/60 px-2 py-0.5 rounded-md inline-block">
-                    What MindMirror Noticed
+                <div className="space-y-1.5">
+                  <span className="text-[10px] font-mono font-semibold uppercase tracking-wider text-amber-900 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-md inline-block">
+                    Observation
                   </span>
-                  <p className="text-sm font-medium text-stone-900 leading-snug">
+                  <p className="text-sm font-semibold text-stone-900 leading-snug">
                     {challenge.observation}
                   </p>
                 </div>
 
                 <div className="pt-2 border-t border-stone-100">
-                  <span className="text-[10px] font-mono text-stone-400 uppercase tracking-wider block mb-1">
-                    What You Wrote
-                  </span>
-                  <blockquote className="text-xs text-stone-700 italic bg-stone-50 p-2.5 rounded-xl border border-stone-200/60 leading-relaxed flex items-start gap-1.5">
-                    <Quote className="w-3 h-3 text-stone-400 shrink-0 mt-0.5" />
-                    <span>&ldquo;{challenge.evidenceQuote}&rdquo;</span>
-                  </blockquote>
+                  <div className="bg-amber-50/50 border border-amber-200/70 rounded-xl p-3 space-y-1">
+                    <span className="text-[10px] font-mono font-semibold text-amber-900 uppercase tracking-wider flex items-center gap-1">
+                      <Quote className="w-2.5 h-2.5 text-amber-700" />
+                      Verbatim Quote From Your Journal:
+                    </span>
+                    <blockquote className="text-xs font-serif italic text-stone-800 leading-relaxed pl-1">
+                      &ldquo;{challenge.evidenceQuote}&rdquo;
+                    </blockquote>
+                  </div>
                 </div>
               </div>
             ))}
@@ -292,30 +301,32 @@ export const ReflectionInsightCard: React.FC<ReflectionInsightCardProps> = ({
               Achievements &amp; Progress
             </h4>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
             {insight.achievements.map((achievement, index) => (
               <div
                 key={`achievement-${index}`}
                 id={`insight-achievement-${index}`}
-                className="bg-white border border-stone-200/90 rounded-2xl p-4 shadow-2xs space-y-2.5"
+                className="bg-white border border-stone-200/90 rounded-2xl p-4 sm:p-5 shadow-2xs space-y-3"
               >
-                <div className="space-y-1">
-                  <span className="text-[10px] font-mono font-semibold uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 rounded-md inline-block">
-                    What MindMirror Noticed
+                <div className="space-y-1.5">
+                  <span className="text-[10px] font-mono font-semibold uppercase tracking-wider text-emerald-900 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-md inline-block">
+                    Observation
                   </span>
-                  <p className="text-sm font-medium text-stone-900 leading-snug">
+                  <p className="text-sm font-semibold text-stone-900 leading-snug">
                     {achievement.observation}
                   </p>
                 </div>
 
                 <div className="pt-2 border-t border-stone-100">
-                  <span className="text-[10px] font-mono text-stone-400 uppercase tracking-wider block mb-1">
-                    What You Wrote
-                  </span>
-                  <blockquote className="text-xs text-stone-700 italic bg-stone-50 p-2.5 rounded-xl border border-stone-200/60 leading-relaxed flex items-start gap-1.5">
-                    <Quote className="w-3 h-3 text-stone-400 shrink-0 mt-0.5" />
-                    <span>&ldquo;{achievement.evidenceQuote}&rdquo;</span>
-                  </blockquote>
+                  <div className="bg-emerald-50/40 border border-emerald-200/70 rounded-xl p-3 space-y-1">
+                    <span className="text-[10px] font-mono font-semibold text-emerald-900 uppercase tracking-wider flex items-center gap-1">
+                      <Quote className="w-2.5 h-2.5 text-emerald-700" />
+                      Verbatim Quote From Your Journal:
+                    </span>
+                    <blockquote className="text-xs font-serif italic text-stone-800 leading-relaxed pl-1">
+                      &ldquo;{achievement.evidenceQuote}&rdquo;
+                    </blockquote>
+                  </div>
                 </div>
               </div>
             ))}
@@ -426,24 +437,3 @@ export const ReflectionInsightCard: React.FC<ReflectionInsightCardProps> = ({
     </div>
   );
 };
-
-// Helper icon for emotion
-function HeartPulseIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
-    >
-      <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
-      <path d="M3.22 12H9.5l.5-1 2 4.5 2-7 1.5 3.5h5.27" />
-    </svg>
-  );
-}

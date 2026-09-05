@@ -21,7 +21,7 @@ import {
   orderBy,
   Firestore,
 } from 'firebase/firestore';
-import type { JournalEntry, UserProfile } from '../types.ts';
+import type { JournalEntry, UserProfile, ReflectionInsight } from '../types.ts';
 import firebaseConfigRaw from '../../firebase-applet-config.json';
 
 const firebaseConfig = {
@@ -156,5 +156,19 @@ export async function fetchUserInsight(userId: string, entryId: string) {
   } catch {
     console.warn(`Could not load insight for ${entryId}`);
     return null;
+  }
+}
+
+/**
+ * Save insight directly to user-isolated Firestore subcollection
+ */
+export async function saveUserInsight(userId: string, insight: ReflectionInsight): Promise<void> {
+  if (!userId || !insight || !insight.entryId) return;
+  try {
+    const insightDocId = insight.id || `insight_${insight.entryId}`;
+    const insightRef = doc(db, 'users', userId, 'insights', insightDocId);
+    await setDoc(insightRef, cleanPayload(insight), { merge: true });
+  } catch (err) {
+    console.warn('Could not persist insight to Firestore from client:', err);
   }
 }
