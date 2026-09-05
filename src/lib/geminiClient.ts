@@ -18,8 +18,8 @@ async function getAuthHeaders(): Promise<{ 'Content-Type': string; Authorization
     try {
       const idToken = await currentUser.getIdToken();
       headers.Authorization = `Bearer ${idToken}`;
-    } catch (err) {
-      console.warn('Could not retrieve Firebase ID token:', err);
+    } catch {
+      console.warn('Could not retrieve Firebase ID token');
     }
   }
 

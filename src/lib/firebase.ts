@@ -16,6 +16,7 @@ import {
   getDocs,
   getDoc,
   deleteDoc,
+  writeBatch,
   query,
   orderBy,
   Firestore,
@@ -65,7 +66,7 @@ export async function loginWithGoogle(): Promise<User> {
     const result = await signInWithPopup(auth, googleProvider);
     return result.user;
   } catch (error: any) {
-    console.warn('Popup sign in failed, trying redirect if applicable:', error);
+    console.warn('Popup sign in failed, trying redirect if applicable');
     if (error?.code === 'auth/popup-blocked' || error?.code === 'auth/cancelled-popup-request') {
       await signInWithRedirect(auth, googleProvider);
       throw new Error('Redirecting to Google sign in...');
@@ -134,16 +135,12 @@ export async function saveUserEntry(userId: string, entry: JournalEntry): Promis
 
 export async function deleteUserEntry(userId: string, entryId: string): Promise<void> {
   if (!userId || !entryId) throw new Error('User ID and Entry ID are required.');
+  const batch = writeBatch(db);
   const entryRef = doc(db, 'users', userId, 'entries', entryId);
-  await deleteDoc(entryRef);
-
-  // Mandatory Phase 2A requirement: delete associated insight to prevent orphaned data
-  try {
-    const insightRef = doc(db, 'users', userId, 'insights', `insight_${entryId}`);
-    await deleteDoc(insightRef);
-  } catch (err) {
-    console.warn(`Could not delete associated insight for ${entryId}:`, err);
-  }
+  const insightRef = doc(db, 'users', userId, 'insights', `insight_${entryId}`);
+  batch.delete(entryRef);
+  batch.delete(insightRef);
+  await batch.commit();
 }
 
 /**
@@ -156,8 +153,8 @@ export async function fetchUserInsight(userId: string, entryId: string) {
     const snap = await getDoc(insightRef);
     if (!snap.exists()) return null;
     return snap.data();
-  } catch (err) {
-    console.warn(`Could not load insight for ${entryId}:`, err);
+  } catch {
+    console.warn(`Could not load insight for ${entryId}`);
     return null;
   }
 }

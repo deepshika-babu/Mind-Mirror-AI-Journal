@@ -173,7 +173,7 @@ export const EntryWorkspace: React.FC<EntryWorkspaceProps> = ({
       const generated = await requestEntryInsights(entry.id, forceRegenerate);
       setInsight(generated);
     } catch (err: any) {
-      console.error('Failed to explore reflection insights:', err);
+      console.error('Failed to explore reflection insights');
       setInsightError(err?.message || 'Failed to explore reflection insights. Please try again.');
     } finally {
       setIsLoadingInsight(false);

@@ -12,9 +12,29 @@ The application offers a private sanctuary for multi-turn conversational reflect
 | :--- | :--- | :--- |
 | **User Identity** | Firebase Authentication | Secure Google Sign-In (federated auth, zero custom passwords stored). |
 | **Backend Database** | Cloud Firestore | Isolated document storage for multi-turn reflections and metadata. |
-| **AI Processing Engine** | Gemini 3.6 Flash API (`@google/genai`) | Multi-turn cognitive reflection partner with resilient model fallback ladder. |
+| **AI Processing Engine** | Gemini 3.6 Flash API (`@google/genai`) | Multi-turn cognitive reflection partner and structured, grounded insights engine with resilient fallback ladder. |
 | **Secret Management** | Secret Manager & Env Vars | Zero-hardcoded credentials; API keys stored in Google Cloud Secret Manager. |
+| **Token Verification** | Firebase Admin SDK | Cryptographic Bearer token verification on all AI endpoints (`/api/reflect`, `/api/summarize-entry`, `/api/insights`). |
 | **Runtime & Host** | Google Cloud Run & Node.js | Containerized full-stack Express + Vite application. |
+
+---
+
+## Data Model & Firestore Architecture
+
+All user data is strictly isolated within the authenticated user's scope:
+- **Reflections**: `/users/{userId}/entries/{entryId}`
+- **Grounded Insights**: `/users/{userId}/insights/insight_{entryId}` (deterministic 1-to-1 document ID linked to parent entry)
+
+When an entry is deleted, cascading deletion removes both the entry document and its associated insight document synchronously.
+
+---
+
+## API Endpoints & Authentication
+
+All AI endpoints require a valid Firebase ID Token passed via `Authorization: Bearer <token>`:
+- `POST /api/reflect`: Multi-turn reflective conversation partner with cognitive framing.
+- `POST /api/summarize-entry`: Title synthesis and executive summary generation.
+- `POST /api/insights`: Single-entry evidence-grounded insights extraction (themes, emotions, goals, challenges, micro-actions) strictly validated against verbatim quotes from the user's reflection turns. Cached unless `forceRegenerate: true` or entry content has updated since analysis.
 
 ---
 

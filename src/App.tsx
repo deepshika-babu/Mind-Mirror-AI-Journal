@@ -76,8 +76,8 @@ export default function App() {
       const updated = { ...prev, ...newPrefs };
       try {
         localStorage.setItem(PREFS_STORAGE_KEY, JSON.stringify(updated));
-      } catch (err) {
-        console.warn('Failed to save preferences to localStorage:', err);
+      } catch {
+        console.warn('Failed to save preferences to localStorage');
       }
       return updated;
     });
@@ -111,8 +111,8 @@ export default function App() {
       if (userEntries.length > 0 && !selectedEntryId) {
         setSelectedEntryId(userEntries[0].id);
       }
-    } catch (err: any) {
-      console.error('Failed to load user entries from Firestore:', err);
+    } catch {
+      console.error('Failed to load user entries from Firestore');
       setActiveError('Could not load your saved reflections. Check your network connection.');
     } finally {
       setIsLoadingEntries(false);
@@ -125,7 +125,7 @@ export default function App() {
     try {
       await loginWithGoogle();
     } catch (err: any) {
-      console.error('Google Sign-In error:', err);
+      console.error('Google Sign-In error');
       setAuthError(err?.message || 'Authentication could not be completed.');
     } finally {
       setIsSigningIn(false);
@@ -139,8 +139,8 @@ export default function App() {
       setEntries([]);
       setSelectedEntryId(null);
       setCurrentView('home');
-    } catch (err: any) {
-      console.error('Sign Out failed:', err);
+    } catch {
+      console.error('Sign Out failed');
     }
   };
 
@@ -194,8 +194,8 @@ export default function App() {
         const remaining = entries.filter((e) => e.id !== entryId);
         setSelectedEntryId(remaining.length > 0 ? remaining[0].id : null);
       }
-    } catch (err: any) {
-      console.error('Failed to delete entry from Firestore:', err);
+    } catch {
+      console.error('Failed to delete entry from Firestore');
       setActiveError('Failed to delete entry from Firestore.');
     }
   };
@@ -219,8 +219,8 @@ export default function App() {
     setIsSaving(true);
     try {
       await saveUserEntry(currentUser.uid, updatedEntry);
-    } catch (err: any) {
-      console.error('Failed to update entry metadata in Firestore:', err);
+    } catch {
+      console.error('Failed to update entry metadata in Firestore');
       setActiveError('Metadata save failed in Firestore.');
     } finally {
       setIsSaving(false);
@@ -306,8 +306,8 @@ export default function App() {
             if (meta.tags && meta.tags.length > 0) {
               updatedTags = Array.from(new Set([...targetEntry.tags, ...meta.tags]));
             }
-          } catch (metaErr) {
-            console.warn('Auto metadata generation skipped:', metaErr);
+          } catch {
+            console.warn('Auto metadata generation skipped');
           }
         }
 
@@ -332,7 +332,7 @@ export default function App() {
         // Success: clear failed submission tracking
         setLastFailedSubmission(null);
       } catch (err: any) {
-        console.error('Reflection interaction failed:', err);
+        console.error('Reflection interaction failed');
         const errMsg = err?.message || 'Could not complete reflection or save to Firestore.';
         setActiveError(errMsg);
         throw err;

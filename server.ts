@@ -13,20 +13,13 @@ dotenv.config();
 const app = express();
 const PORT = 3000;
 
-// Initialize Firebase Admin SDK using Application Default Credentials (ADC)
+// Initialize Firebase Admin SDK using standard Application Default Credentials (ADC)
 if (!getApps().length) {
-  const projectId =
-    process.env.GOOGLE_CLOUD_PROJECT ||
-    process.env.GCLOUD_PROJECT ||
-    'ai-studio-3f21986a-22d5-4ae1-8257-71061c26ced8';
-
   try {
-    initializeApp({
-      projectId,
-    });
-    console.log(`[Firebase Admin] Initialized with project ID: ${projectId}`);
-  } catch (initErr) {
-    console.warn('[Firebase Admin] Warning during initialization:', initErr);
+    initializeApp();
+    console.log('[Firebase Admin] Initialized with Application Default Credentials');
+  } catch {
+    console.warn('[Firebase Admin] Warning during initialization');
   }
 }
 
@@ -69,7 +62,7 @@ async function requireAuth(req: AuthenticatedRequest, res: Response, next: NextF
     };
     next();
   } catch (err: any) {
-    console.warn('[Auth] ID token verification rejected:', err?.code || err?.message);
+    console.warn('[Auth] ID token verification rejected:', err?.code || 'verification_failed');
     return res.status(401).json({
       error: 'Invalid or expired authentication credentials. Please sign in again.',
     });
@@ -137,12 +130,12 @@ async function generateContentWithFallback(
       const statusCode = err?.status || err?.statusCode || (err?.message?.includes('429') ? 429 : 500);
       const isRecoverable = RECOVERABLE_CODES.includes(statusCode) || err?.message?.includes('RESOURCE_EXHAUSTED');
 
-      console.warn(`[Gemini Fallback] Model ${modelName} failed (status: ${statusCode}). Recoverable: ${isRecoverable}. Error: ${err?.message || err}`);
+      console.warn(`[Gemini Fallback] Model ${modelName} failed (status: ${statusCode}). Recoverable: ${isRecoverable}.`);
       continue;
     }
   }
 
-  throw new Error(`All models in fallback ladder failed. Last error: ${lastError?.message || 'Unknown generation failure'}`);
+  throw new Error('All models in fallback ladder failed.');
 }
 
 /**
@@ -181,12 +174,12 @@ async function generateStructuredInsightsWithFallback(
       const statusCode = err?.status || err?.statusCode || (err?.message?.includes('429') ? 429 : 500);
       const isRecoverable = RECOVERABLE_CODES.includes(statusCode) || err?.message?.includes('RESOURCE_EXHAUSTED');
 
-      console.warn(`[Gemini Fallback] Structured model ${modelName} failed (status: ${statusCode}). Recoverable: ${isRecoverable}. Error: ${err?.message || err}`);
+      console.warn(`[Gemini Fallback] Structured model ${modelName} failed (status: ${statusCode}). Recoverable: ${isRecoverable}.`);
       continue;
     }
   }
 
-  throw new Error(`All models in fallback ladder failed for structured insights. Last error: ${lastError?.message || 'Unknown generation failure'}`);
+  throw new Error('All models in fallback ladder failed for structured insights.');
 }
 
 // Validation helpers for strictly verbatim evidence and bounded lists
@@ -216,7 +209,7 @@ function validateEvidenceList(
 
     // Check 2: evidenceQuote is a strictly VERBATIM substring of that user turn
     if (!turnContent.includes(evidenceQuote)) {
-      console.warn(`[Evidence Grounding] Rejected non-verbatim quote in turn "${sourceTurnId}": "${evidenceQuote.slice(0, 50)}..."`);
+      console.warn(`[Evidence Grounding] Rejected non-verbatim quote in turn "${sourceTurnId}".`);
       continue;
     }
 
@@ -322,10 +315,10 @@ ${titleContext ? `The entry title context is: "${titleContext}".` : ''}`;
       text: result.text,
       modelUsed: result.modelUsed,
     });
-  } catch (error: any) {
-    console.error('[Reflect] Error generating reflection:', error?.message || error);
+  } catch {
+    console.error('[Reflect] Error generating reflection');
     return res.status(500).json({
-      error: error?.message || 'Failed to generate reflection. Please try again.',
+      error: 'Failed to generate reflection. Please try again.',
     });
   }
 });
@@ -375,10 +368,10 @@ Do not include markdown code block backticks around the JSON if possible, or for
         tags: ['Reflection'],
       });
     }
-  } catch (error: any) {
-    console.error('[Summarize] Error summarizing entry:', error?.message || error);
+  } catch {
+    console.error('[Summarize] Error summarizing entry');
     return res.status(500).json({
-      error: error?.message || 'Failed to summarize entry.',
+      error: 'Failed to summarize entry.',
     });
   }
 });
@@ -487,7 +480,17 @@ app.post('/api/insights', requireAuth, async (req: AuthenticatedRequest, res: Re
 
     const body = (req.body && typeof req.body === 'object') ? req.body : {};
     const entryId = typeof body.entryId === 'string' ? body.entryId.trim() : '';
-    const forceRegenerate = Boolean(body.forceRegenerate);
+
+    // forceRegenerate validation: omitted = false, only true/false booleans accepted, else 422
+    let forceRegenerate = false;
+    if (body.forceRegenerate !== undefined) {
+      if (typeof body.forceRegenerate !== 'boolean') {
+        return res.status(422).json({
+          error: 'Invalid forceRegenerate parameter. Expected boolean true or false.',
+        });
+      }
+      forceRegenerate = body.forceRegenerate;
+    }
 
     // Strict validation of entryId pattern
     if (!entryId || !/^[a-zA-Z0-9_\-\.]{3,128}$/.test(entryId)) {
@@ -522,8 +525,8 @@ app.post('/api/insights', requireAuth, async (req: AuthenticatedRequest, res: Re
             return res.json({ insight: cachedData, cached: true });
           }
         }
-      } catch (cacheErr) {
-        console.warn('[Insights Cache] Could not read existing insight:', cacheErr);
+      } catch {
+        console.warn('[Insights Cache] Could not read existing insight');
       }
     }
 
@@ -620,8 +623,8 @@ OUTPUT CONSTRAINTS:
         rawText = rawText.replace(/^```\s*/, '').replace(/\s*```$/, '');
       }
       parsed = JSON.parse(rawText);
-    } catch (parseErr) {
-      console.error('[Insights] Failed to parse model JSON:', parseErr);
+    } catch {
+      console.error('[Insights] Failed to parse model JSON');
       return res.status(502).json({ error: 'AI analysis returned an unparseable response. Please retry.' });
     }
 
@@ -657,16 +660,16 @@ OUTPUT CONSTRAINTS:
     // Persist validated insight in user's private Firestore partition
     try {
       await insightRef.set(finalInsight);
-    } catch (dbErr: any) {
-      console.error('[Insights] Failed to save insight to Firestore:', dbErr?.message || dbErr);
+    } catch {
+      console.error('[Insights] Failed to save insight to Firestore');
       return res.status(500).json({ error: 'Failed to persist generated insight to private database.' });
     }
 
     return res.json({ insight: finalInsight });
-  } catch (error: any) {
-    console.error('[Insights] Unexpected error during insight generation:', error?.message || error);
+  } catch {
+    console.error('[Insights] Unexpected error during insight generation');
     return res.status(500).json({
-      error: error?.message || 'An unexpected error occurred during reflection exploration.',
+      error: 'An unexpected error occurred during reflection exploration.',
     });
   }
 });
