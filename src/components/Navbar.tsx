@@ -7,6 +7,8 @@ import {
   Plus,
   LogOut,
   CheckCircle2,
+  Layers,
+  Calendar,
 } from 'lucide-react';
 import type { UserProfile, AppView } from '../types.ts';
 
@@ -30,6 +32,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   const NAV_ITEMS: { id: AppView; label: string; icon: React.FC<{ className?: string }> }[] = [
     { id: 'home', label: 'Home', icon: Home },
     { id: 'journal', label: 'Journal', icon: BookOpen },
+    { id: 'weekly', label: 'Weekly', icon: Calendar },
+    { id: 'threads', label: 'Memory Threads', icon: Layers },
     { id: 'privacy', label: 'Privacy', icon: ShieldCheck },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];

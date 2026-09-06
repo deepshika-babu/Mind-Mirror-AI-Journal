@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   Compass,
   Tag as TagIcon,
+  Layers,
 } from 'lucide-react';
 import type { JournalEntry, UserProfile, ReflectionMode } from '../types.ts';
 import { tokens } from '../lib/designTokens.ts';
@@ -19,6 +20,8 @@ interface HomePageProps {
   user: UserProfile;
   entries: JournalEntry[];
   onNavigateToJournal: (entryId?: string) => void;
+  onNavigateToThreads?: () => void;
+  onNavigateToWeekly?: () => void;
   onNewEntry: () => void;
   onStartWithPrompt?: (prompt: string, mode: ReflectionMode) => void;
 }
@@ -27,6 +30,8 @@ export const HomePage: React.FC<HomePageProps> = ({
   user,
   entries,
   onNavigateToJournal,
+  onNavigateToThreads,
+  onNavigateToWeekly,
   onNewEntry,
   onStartWithPrompt,
 }) => {
@@ -115,15 +120,20 @@ export const HomePage: React.FC<HomePageProps> = ({
         {/* Welcome Header */}
         <section className="bg-white rounded-3xl border border-stone-200 p-6 sm:p-8 shadow-xs relative overflow-hidden">
           <div className="relative z-10 max-w-2xl space-y-3">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-xs font-medium text-amber-800">
-              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-              <span>Personal Reflection Sanctuary</span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-xs font-medium text-amber-800">
+                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                <span>Personal Reflection Sanctuary</span>
+              </div>
+              <span className="text-[11px] font-medium text-stone-600 bg-stone-100 px-2.5 py-1 rounded-full border border-stone-200">
+                Powered by Gemini 3.8 Flash
+              </span>
             </div>
             <h1 className={tokens.typography.h1}>
               {greeting}, {user.displayName?.split(' ')[0] || 'Writer'}.
             </h1>
             <p className="text-stone-600 text-sm sm:text-base leading-relaxed">
-              Welcome back to your private MindMirror sanctuary. Here, every thought is preserved in secure Firestore cloud isolation and synthesized with thoughtful Gemini counsel.
+              Welcome back to your private MindMirror sanctuary. Here, every thought is preserved in secure Firestore cloud isolation and synthesized with thoughtful Gemini 3.8 Flash counsel.
             </p>
             <div className="pt-2 flex items-center gap-3 flex-wrap">
               <button
@@ -142,6 +152,26 @@ export const HomePage: React.FC<HomePageProps> = ({
                 <BookOpen className="w-4 h-4 text-stone-600" />
                 <span>Open Journal Workspace</span>
               </button>
+              {onNavigateToWeekly && (
+                <button
+                  id="home-open-weekly-btn"
+                  onClick={onNavigateToWeekly}
+                  className={tokens.buttons.secondary}
+                >
+                  <Calendar className="w-4 h-4 text-amber-700" />
+                  <span>Weekly Reflection</span>
+                </button>
+              )}
+              {onNavigateToThreads && (
+                <button
+                  id="home-open-threads-btn"
+                  onClick={onNavigateToThreads}
+                  className={tokens.buttons.secondary}
+                >
+                  <Layers className="w-4 h-4 text-amber-700" />
+                  <span>Memory Threads</span>
+                </button>
+              )}
             </div>
           </div>
           <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-linear-to-l from-amber-50/50 to-transparent pointer-events-none hidden md:block" />

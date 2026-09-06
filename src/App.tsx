@@ -8,8 +8,21 @@ import {
   fetchUserEntries,
   saveUserEntry,
   deleteUserEntry,
+  fetchUserInsights,
+  fetchUserThreads,
+  saveUserThreads,
+  deleteUserThread,
+  fetchUserWeeklyReflections,
+  saveUserWeeklyReflection,
+  deleteUserWeeklyReflection,
 } from './lib/firebase.ts';
-import { requestReflection, generateEntryMetadata } from './lib/geminiClient.ts';
+import {
+  requestReflection,
+  generateEntryMetadata,
+  requestMemoryThreads,
+  requestWeeklyReflection,
+} from './lib/geminiClient.ts';
+import { getWeekRangeFromKey } from './lib/weekUtils.ts';
 import { LandingPage } from './components/LandingPage.tsx';
 import { Navbar } from './components/Navbar.tsx';
 import { SidebarHistory } from './components/SidebarHistory.tsx';
@@ -17,6 +30,8 @@ import { EntryWorkspace } from './components/EntryWorkspace.tsx';
 import { HomePage } from './components/HomePage.tsx';
 import { PrivacyPage } from './components/PrivacyPage.tsx';
 import { SettingsPage } from './components/SettingsPage.tsx';
+import { MemoryThreadsView } from './components/MemoryThreadsView.tsx';
+import { WeeklyReflectionView } from './components/WeeklyReflectionView.tsx';
 import { MobileBottomNav } from './components/MobileBottomNav.tsx';
 import { DeleteConfirmationModal } from './components/DeleteConfirmationModal.tsx';
 import type {
@@ -26,6 +41,9 @@ import type {
   UserProfile,
   AppView,
   UserPreferences,
+  MemoryThread,
+  WeeklyReflection,
+  ReflectionInsight,
 } from './types.ts';
 
 const PREFS_STORAGE_KEY = 'mindmirror_user_prefs';
@@ -60,6 +78,18 @@ export default function App() {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [isLoadingEntries, setIsLoadingEntries] = useState<boolean>(false);
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
+
+  // Phase 2B: Memory Threads state
+  const [threads, setThreads] = useState<MemoryThread[]>([]);
+  const [isLoadingThreads, setIsLoadingThreads] = useState<boolean>(false);
+  const [isGeneratingThreads, setIsGeneratingThreads] = useState<boolean>(false);
+  const [threadsError, setThreadsError] = useState<string | null>(null);
+
+  // Phase 2C: Weekly Reflection state
+  const [weeklyReflections, setWeeklyReflections] = useState<WeeklyReflection[]>([]);
+  const [isLoadingWeekly, setIsLoadingWeekly] = useState<boolean>(false);
+  const [isGeneratingWeekly, setIsGeneratingWeekly] = useState<boolean>(false);
+  const [weeklyError, setWeeklyError] = useState<string | null>(null);
 
   // Generation and saving state
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
@@ -96,10 +126,16 @@ export default function App() {
       setIsAuthChecking(false);
 
       if (userProfile) {
-        // Load user's private isolated entries
-        await loadUserEntries(userProfile.uid);
+        // Load user's private isolated entries, memory threads, and weekly reflections
+        await Promise.all([
+          loadUserEntries(userProfile.uid),
+          loadUserThreads(userProfile.uid),
+          loadUserWeeklyReflections(userProfile.uid),
+        ]);
       } else {
         setEntries([]);
+        setThreads([]);
+        setWeeklyReflections([]);
         setSelectedEntryId(null);
         setCurrentView('home');
       }
@@ -124,6 +160,30 @@ export default function App() {
     }
   };
 
+  const loadUserThreads = async (userId: string) => {
+    setIsLoadingThreads(true);
+    try {
+      const userThreads = await fetchUserThreads(userId);
+      setThreads(userThreads);
+    } catch (err: any) {
+      console.warn('Failed to load user threads from Firestore:', err?.message);
+    } finally {
+      setIsLoadingThreads(false);
+    }
+  };
+
+  const loadUserWeeklyReflections = async (userId: string) => {
+    setIsLoadingWeekly(true);
+    try {
+      const stored = await fetchUserWeeklyReflections(userId);
+      setWeeklyReflections(stored);
+    } catch (err: any) {
+      console.warn('Failed to load weekly reflections from Firestore:', err?.message);
+    } finally {
+      setIsLoadingWeekly(false);
+    }
+  };
+
   const handleSignIn = async () => {
     setIsSigningIn(true);
     setAuthError(null);
@@ -142,11 +202,126 @@ export default function App() {
       await logoutUser();
       setCurrentUser(null);
       setEntries([]);
+      setThreads([]);
+      setWeeklyReflections([]);
+      setThreadsError(null);
+      setWeeklyError(null);
       setSelectedEntryId(null);
       setCurrentView('home');
     } catch {
       console.error('Sign Out failed');
     }
+  };
+
+  // Phase 2B: Generate or regenerate Memory Threads
+  const handleGenerateThreads = async () => {
+    if (!currentUser) return;
+    setIsGeneratingThreads(true);
+    setThreadsError(null);
+
+    try {
+      // Gather Phase 2A insights from Firestore for multi-layered grounded synthesis
+      let userInsights: any[] = [];
+      try {
+        userInsights = await fetchUserInsights(currentUser.uid);
+      } catch (err: any) {
+        console.warn('Could not fetch Phase 2A insights:', err?.message);
+      }
+
+      const result = await requestMemoryThreads({
+        entries,
+        insights: userInsights,
+        forceRegenerate: true,
+      });
+
+      if (result.notice && result.threads.length === 0) {
+        setThreadsError(result.notice);
+      } else {
+        setThreads(result.threads);
+        // Persist on client side as well for resilience
+        await saveUserThreads(currentUser.uid, result.threads);
+      }
+    } catch (err: any) {
+      console.error('Memory Threads generation error:', err);
+      setThreadsError(err?.message || 'An unexpected error occurred during Memory Threads analysis.');
+    } finally {
+      setIsGeneratingThreads(false);
+    }
+  };
+
+  // Delete a single memory thread
+  const handleDeleteThread = async (threadId: string) => {
+    if (!currentUser) return;
+    try {
+      await deleteUserThread(currentUser.uid, threadId);
+      setThreads((prev) => prev.filter((t) => t.id !== threadId));
+    } catch (err: any) {
+      console.error('Failed to delete memory thread:', err);
+      setThreadsError('Failed to remove thread. Please try again.');
+    }
+  };
+
+  // Phase 2C: Generate or regenerate Weekly Reflection
+  const handleGenerateWeekly = async (weekKey: string, forceRegenerate = false) => {
+    if (!currentUser) return;
+    setIsGeneratingWeekly(true);
+    setWeeklyError(null);
+
+    try {
+      const range = getWeekRangeFromKey(weekKey);
+      let userInsights: any[] = [];
+      try {
+        userInsights = await fetchUserInsights(currentUser.uid);
+      } catch (err: any) {
+        console.warn('Could not fetch Phase 2A insights for weekly synthesis:', err?.message);
+      }
+
+      const result = await requestWeeklyReflection({
+        weekKey,
+        startDate: range.startDate,
+        endDate: range.endDate,
+        forceRegenerate,
+        entries,
+        insights: userInsights,
+        threads,
+      });
+
+      if (result.reflection) {
+        setWeeklyReflections((prev) => {
+          const filtered = prev.filter((r) => r.weekKey !== weekKey);
+          return [result.reflection, ...filtered];
+        });
+        // Persist on client Firestore as well for resilience
+        await saveUserWeeklyReflection(currentUser.uid, result.reflection);
+      }
+    } catch (err: any) {
+      console.error('Weekly Reflection generation error:', err);
+      setWeeklyError(err?.message || 'An unexpected error occurred during Weekly Reflection synthesis.');
+    } finally {
+      setIsGeneratingWeekly(false);
+    }
+  };
+
+  // Delete a cached weekly reflection
+  const handleDeleteWeekly = async (docIdOrWeekKey: string) => {
+    if (!currentUser) return;
+    try {
+      await deleteUserWeeklyReflection(currentUser.uid, docIdOrWeekKey);
+      const weekKeyToMatch = docIdOrWeekKey.replace(/^weekly_/, '');
+      setWeeklyReflections((prev) => prev.filter((r) => r.id !== docIdOrWeekKey && r.weekKey !== weekKeyToMatch));
+    } catch (err: any) {
+      console.error('Failed to delete weekly reflection:', err);
+      setWeeklyError('Failed to remove weekly reflection. Please try again.');
+    }
+  };
+
+  // Navigate directly to a specific journal entry from a thread card
+  const handleNavigateFromThreadToJournal = (entryId?: string) => {
+    if (entryId) {
+      setSelectedEntryId(entryId);
+    }
+    setCurrentView('journal');
+    setMobileJournalTab('workspace');
   };
 
   const handleCreateNewEntry = (initialPrompt?: string, mode?: ReflectionMode) => {
@@ -430,6 +605,8 @@ export default function App() {
             user={currentUser}
             entries={entries}
             onNavigateToJournal={handleNavigateToJournal}
+            onNavigateToThreads={() => setCurrentView('threads')}
+            onNavigateToWeekly={() => setCurrentView('weekly')}
             onNewEntry={() => handleCreateNewEntry()}
             onStartWithPrompt={(prompt, mode) => handleCreateNewEntry(prompt, mode)}
           />
@@ -477,10 +654,46 @@ export default function App() {
           </div>
         )}
 
-        {/* View 3: Privacy & Security Architectural Transparency */}
+        {/* View 3: Weekly Reflection (Phase 2C Weekly Synthesis) */}
+        {currentView === 'weekly' && (
+          <div className="flex-1 overflow-y-auto">
+            <WeeklyReflectionView
+              user={currentUser}
+              entries={entries}
+              insights={[]}
+              threads={threads}
+              weeklyReflections={weeklyReflections}
+              isLoading={isLoadingWeekly}
+              isGenerating={isGeneratingWeekly}
+              error={weeklyError}
+              onGenerateWeekly={handleGenerateWeekly}
+              onDeleteWeekly={handleDeleteWeekly}
+              onNavigateToJournal={handleNavigateToJournal}
+              onClearError={() => setWeeklyError(null)}
+            />
+          </div>
+        )}
+
+        {/* View 4: Memory Threads (Phase 2B Recurring Cross-Entry Synthesis) */}
+        {currentView === 'threads' && (
+          <MemoryThreadsView
+            user={currentUser}
+            entries={entries}
+            threads={threads}
+            isLoading={isLoadingThreads}
+            isGenerating={isGeneratingThreads}
+            error={threadsError}
+            onGenerateThreads={handleGenerateThreads}
+            onDeleteThread={handleDeleteThread}
+            onNavigateToJournal={handleNavigateFromThreadToJournal}
+            onClearError={() => setThreadsError(null)}
+          />
+        )}
+
+        {/* View 5: Privacy & Security Architectural Transparency */}
         {currentView === 'privacy' && <PrivacyPage user={currentUser} />}
 
-        {/* View 4: Account & Preferences Settings */}
+        {/* View 6: Account & Preferences Settings */}
         {currentView === 'settings' && (
           <SettingsPage
             user={currentUser}

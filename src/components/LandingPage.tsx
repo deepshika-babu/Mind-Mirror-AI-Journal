@@ -35,9 +35,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, isLoading, a
 
       {/* Hero Section */}
       <main className="flex-1 max-w-4xl mx-auto px-6 py-16 flex flex-col items-center text-center justify-center">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-stone-100 border border-stone-200 text-xs font-medium text-stone-600 mb-6">
-          <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-          <span>Strictly User-Isolated Cloud Firestore Architecture</span>
+        <div className="flex flex-wrap items-center justify-center gap-2 mb-6">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-xs font-medium text-amber-900 shadow-2xs">
+            <Sparkles className="w-3.5 h-3.5 text-amber-700" />
+            <span>Powered by Gemini 3.8 Flash</span>
+          </div>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-stone-100 border border-stone-200 text-xs font-medium text-stone-600">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Strictly User-Isolated Cloud Firestore Architecture</span>
+          </div>
         </div>
 
         <h1 className="text-4xl sm:text-5xl font-serif tracking-tight text-stone-900 leading-tight mb-5 max-w-2xl">
@@ -45,7 +51,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, isLoading, a
         </h1>
 
         <p className="text-lg text-stone-600 max-w-xl mb-10 leading-relaxed">
-          Record your daily reflections and converse with Gemini in multi-turn dialogues. Synthesize emotions, brainstorm creative resolutions, and preserve your personal journey in secure cloud isolation.
+          Record your daily reflections and converse with Gemini 3.8 Flash in multi-turn dialogues. Synthesize emotions, brainstorm creative resolutions, and preserve your personal journey in secure cloud isolation.
         </p>
 
         {authError && (
@@ -100,9 +106,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, isLoading, a
             <div className="w-10 h-10 rounded-xl bg-amber-100/70 text-amber-800 flex items-center justify-center mb-4">
               <Sparkles className="w-5 h-5" />
             </div>
-            <h3 className="font-semibold text-stone-900 mb-1.5 text-base">Gemini 3.6 Flash Counsel</h3>
+            <h3 className="font-semibold text-stone-900 mb-1.5 text-base">Gemini 3.8 Flash Counsel</h3>
             <p className="text-sm text-stone-600 leading-relaxed">
-              Converse in multi-turn depth. Request empathetic mirrors, executive summaries, fresh brainstorming angles, or structured action plans.
+              Converse in multi-turn depth powered by Google's Gemini 3.8 Flash. Request empathetic mirrors, executive summaries, fresh brainstorming angles, or structured action plans.
             </p>
           </div>
 
@@ -130,7 +136,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, isLoading, a
 
       {/* Footer */}
       <footer className="border-t border-stone-200 py-6 text-center text-xs text-stone-600">
-        <p>AI Journal & Reflections — Built with Google Gemini and Cloud Firestore</p>
+        <p>AI Journal & Reflections — Built with Google Gemini 3.8 Flash and Cloud Firestore</p>
       </footer>
     </div>
   );
